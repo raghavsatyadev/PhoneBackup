@@ -1,0 +1,3093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhoneBackup — Android Backup Tool</title>
+<meta name="description" content="Back up your Android phone via ADB with integrity checking, pause/resume, and WiFi support.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-tertiary: #1a2332;
+  --bg-card: #151d2e;
+  --bg-hover: #1e2a3e;
+  --bg-input: #0d1421;
+  --border: #1e2d42;
+  --border-focus: #3b82f6;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.1);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --danger: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --purple: #8b5cf6;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --transition: 200ms ease;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100vh;
+  gap: 0;
+}
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.header {
+  background: linear-gradient(135deg, var(--bg-secondary), var(--bg-tertiary));
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-brand .logo {
+  font-size: 28px;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.header-brand h1 {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-brand .subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Device Panel ──────────────────────────────────────────────────────────── */
+.device-panel {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.device-panel .section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.device-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.device-selector select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 240px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.device-selector select:focus { border-color: var(--accent); outline: none; }
+
+.wifi-connect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.wifi-connect input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  width: 180px;
+  transition: border-color var(--transition);
+}
+.wifi-connect input:focus { border-color: var(--accent); outline: none; }
+.wifi-connect input::placeholder { color: var(--text-muted); }
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px var(--accent-glow); }
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+.btn-success:hover { background: #059669; transform: translateY(-1px); }
+
+.btn-warning {
+  background: var(--warning);
+  color: #000;
+}
+.btn-warning:hover { background: #d97706; }
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.btn-danger:hover { background: var(--danger-bg); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+.btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn .icon { font-size: 14px; }
+
+/* ── Main Content ──────────────────────────────────────────────────────────── */
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────────── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+.panel:last-child { border-right: none; }
+
+.panel-header {
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.panel-header h2 {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header h2 .icon { font-size: 16px; }
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: var(--bg-input);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.breadcrumb-item {
+  cursor: pointer;
+  color: var(--accent);
+  transition: color var(--transition);
+  white-space: nowrap;
+}
+.breadcrumb-item:hover { color: var(--text-primary); }
+
+.breadcrumb-sep { color: var(--text-muted); }
+
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* ── File List ─────────────────────────────────────────────────────────────── */
+.file-list {
+  list-style: none;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: background var(--transition);
+  font-size: 13px;
+}
+.file-item:hover { background: var(--bg-hover); }
+.file-item.selected { background: var(--accent-glow); }
+
+.file-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.file-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-item.dir .file-name { color: var(--accent); font-weight: 500; }
+
+.file-size {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.file-list-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Tree View Styles ──────────────────────────────────────────────────────── */
+.tree-container {
+  padding: 8px 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tree-node {
+  margin: 1px 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+}
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.tree-row.selected {
+  background: var(--accent-glow);
+}
+
+.tree-expander {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.tree-expander:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+.tree-expander.empty {
+  visibility: hidden;
+}
+
+.tree-checkbox {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-input);
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.tree-checkbox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.tree-checkbox:checked::before {
+  content: "✔";
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.tree-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tree-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-node.is-dir > .tree-row > .tree-label {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tree-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.tree-children {
+  margin-left: 18px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.12);
+  padding-left: 2px;
+}
+
+.tree-loading {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Filter Bar ────────────────────────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.filter-bar input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  flex: 1;
+}
+.filter-bar input:focus { border-color: var(--accent); outline: none; }
+.filter-bar input::placeholder { color: var(--text-muted); }
+
+.filter-presets {
+  display: flex;
+  gap: 4px;
+}
+
+.preset-btn {
+  padding: 4px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+.preset-btn:hover, .preset-btn.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Source Paths Queue ────────────────────────────────────────────────────── */
+.source-queue-card {
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  max-height: 200px;
+}
+
+.source-queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.source-queue-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.source-count-badge {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.source-queue-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-xs {
+  padding: 3px 7px;
+  font-size: 10px;
+}
+
+.quick-sources-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.quick-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.quick-source-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+.quick-source-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.source-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 85px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+.source-chips-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-primary);
+  max-width: 100%;
+}
+
+.source-chip .chip-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 10px;
+}
+
+.source-chip .chip-remove {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0 2px;
+  border-radius: 2px;
+  line-height: 1;
+}
+.source-chip .chip-remove:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── Destination Preview ───────────────────────────────────────────────────── */
+.dest-preview-box {
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  font-size: 11px;
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.dest-preview-title {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.dest-preview-tree {
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  color: var(--accent);
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.dest-preview-tree .tree-leaf {
+  color: var(--text-primary);
+  margin-left: 14px;
+}
+
+/* ── Direct Destination Bar & Status File Banner ────────────────────────── */
+.dest-direct-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.dest-path-input {
+  flex: 1;
+  padding: 7px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11.5px;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.dest-path-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.status-detected-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.18), rgba(59, 130, 246, 0.12));
+  border-bottom: 1px solid rgba(99, 102, 241, 0.35);
+  animation: fadeIn 0.2s ease;
+}
+
+.status-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-banner-icon {
+  font-size: 16px;
+}
+
+.status-banner-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status-banner-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.status-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.file-item.status-file {
+  background: rgba(99, 102, 241, 0.12);
+  border-left: 3px solid #818cf8;
+}
+
+.file-item.status-file:hover {
+  background: rgba(99, 102, 241, 0.22);
+}
+
+.status-file-badge {
+  margin-left: auto;
+  font-size: 10px;
+  background: #6366f1;
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* ── Modal ─────────────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 520px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 16px;
+}
+
+.modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 10px;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+.modal-textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* ── Transfer Dashboard ────────────────────────────────────────────────────── */
+.transfer-panel {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.transfer-panel-header {
+  padding: 12px 24px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.transfer-panel-header h2 {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transfer-card {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  transition: all var(--transition);
+  cursor: pointer;
+  position: relative;
+}
+.transfer-card:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.transfer-card.is-running {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.03));
+  border-left: 4px solid var(--accent);
+  box-shadow: inset 0 0 24px rgba(59, 130, 246, 0.06);
+}
+
+.transfer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.transfer-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.transfer-id {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  color: var(--purple);
+  background: rgba(139, 92, 246, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.transfer-path {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transfer-progress {
+  margin-bottom: 8px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 300ms ease;
+  background: linear-gradient(90deg, var(--accent), var(--purple));
+}
+
+.progress-bar-fill.completed { background: linear-gradient(90deg, var(--success), #34d399); }
+.progress-bar-fill.failed { background: var(--danger); }
+.progress-bar-fill.paused { background: var(--warning); }
+
+.transfer-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.transfer-stats .stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.transfer-stats .stat-value {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.current-file-preview {
+  margin-top: 6px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.speed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  font-weight: 600;
+  font-size: 11px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+.badge-running { background: var(--accent-glow); color: var(--accent); }
+.badge-running .badge-dot {
+  animation: pulse-dot 1.5s infinite;
+  box-shadow: 0 0 8px #3b82f6;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(0.7); }
+}
+
+.badge-completed { background: var(--success-bg); color: var(--success); }
+.badge-paused { background: var(--warning-bg); color: var(--warning); }
+.badge-failed { background: var(--danger-bg); color: var(--danger); }
+.badge-scanning { background: rgba(139, 92, 246, 0.1); color: var(--purple); }
+.badge-pending { background: rgba(100,116,139,0.1); color: var(--text-muted); }
+.badge-cancelled { background: rgba(100,116,139,0.1); color: var(--text-muted); }
+
+/* ── Transfer Details Expanded Modal ────────────────────────────────────────── */
+.transfer-modal-dialog {
+  width: 94%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.transfer-modal-dialog .modal-body {
+  overflow-y: auto;
+  padding: 18px 22px;
+}
+.modal-path-banner {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 11.5px;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+@media (max-width: 680px) {
+  .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.metric-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.metric-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.metric-value {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.metric-sub {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.text-accent { color: var(--accent); }
+.text-purple { color: #a78bfa; }
+.text-success { color: #34d399; }
+.text-danger { color: #f87171; }
+
+.chart-section {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  margin-bottom: 8px;
+}
+.chart-title { font-weight: 600; color: var(--text-primary); }
+.chart-meta { display: flex; gap: 12px; font-size: 11px; }
+.chart-container { width: 100%; height: 120px; position: relative; }
+.chart-container canvas { width: 100%; height: 100%; display: block; border-radius: 4px; background: rgba(0,0,0,0.25); }
+
+.active-file-box {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.active-file-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #60a5fa;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.active-file-path {
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11.5px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.modal-tab-bar {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.modal-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.modal-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.modal-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.stream-log-list {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11px;
+}
+.stream-log-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.stream-log-time { color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
+.stream-log-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.stream-log-tag.done { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.stream-log-tag.skipped { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
+.stream-log-tag.failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.stream-log-path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.stream-log-size { color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
+
+.failed-box-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+}
+.failed-items-table {
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.failed-item-row {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11px;
+}
+.failed-item-path { color: #f87171; font-weight: 600; word-break: break-all; margin-bottom: 2px; }
+.failed-item-err { color: var(--text-muted); font-size: 10px; }
+
+/* ── Start Backup Bar ──────────────────────────────────────────────────────── */
+.backup-bar {
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.backup-bar .selected-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.backup-bar .selected-info strong {
+  color: var(--accent);
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  animation: slideIn 300ms ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 400px;
+}
+
+.toast-success { background: #065f46; color: #6ee7b7; }
+.toast-error { background: #7f1d1d; color: #fca5a5; }
+.toast-info { background: #1e3a5f; color: #93c5fd; }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ── Empty State ───────────────────────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+.empty-state p { font-size: 13px; max-width: 300px; }
+
+/* ── Loading Spinner ───────────────────────────────────────────────────────── */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .main-content { grid-template-columns: 1fr; }
+  .panel { border-right: none; border-bottom: 1px solid var(--border); }
+  .device-panel { flex-direction: column; align-items: stretch; }
+  .wifi-connect { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <span class="logo">📱</span>
+      <div>
+        <h1>PhoneBackup</h1>
+        <div class="subtitle">Android Backup via ADB • Integrity Verified</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <span class="status-dot" id="wsStatus" title="WebSocket"></span>
+      <button class="btn btn-ghost btn-sm" onclick="refreshDevices()">🔄 Refresh Devices</button>
+    </div>
+  </header>
+
+  <!-- Device Panel -->
+  <div class="device-panel">
+    <span class="section-label">Device</span>
+    <div class="device-selector">
+      <select id="deviceSelect" onchange="onDeviceChange()">
+        <option value="">Select a device...</option>
+      </select>
+      <span id="deviceInfo" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="wifi-connect">
+      <span class="section-label">WiFi ADB</span>
+      <input type="text" id="wifiAddress" placeholder="192.168.1.x:5555" onkeydown="if(event.key==='Enter')connectWifi()">
+      <button class="btn btn-primary btn-sm" onclick="connectWifi()">📶 Connect</button>
+      <button class="btn btn-ghost btn-sm" onclick="disconnectWifi()">Disconnect</button>
+    </div>
+  </div>
+
+  <!-- Main Panels -->
+  <div class="main-content">
+    <!-- Device File Browser -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2><span class="icon">📂</span> Device Storage (Tree View)</h2>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-xs" onclick="expandAllRoots()" title="Expand top folders">📂 Expand</button>
+          <button class="btn btn-ghost btn-xs" onclick="collapseAllRoots()" title="Collapse all folders">📁 Collapse</button>
+          <button class="btn btn-ghost btn-xs" onclick="selectAllFiles()" title="Check all items">☑ All</button>
+          <button class="btn btn-ghost btn-xs" onclick="reloadTree()" title="Reload device tree">🔄</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filterInput" placeholder="Filter: *.jpg, *.mp4, *.pdf..." oninput="applyFilter()">
+        <div class="filter-presets">
+          <button class="preset-btn" onclick="setPreset('all')">All</button>
+          <button class="preset-btn" onclick="setPreset('photos')">📸 Photos</button>
+          <button class="preset-btn" onclick="setPreset('videos')">🎬 Videos</button>
+          <button class="preset-btn" onclick="setPreset('docs')">📄 Docs</button>
+          <button class="preset-btn" onclick="setPreset('music')">🎵 Music</button>
+        </div>
+      </div>
+      <div class="panel-body tree-container" id="deviceFileList">
+        <div class="empty-state">
+          <div class="icon">📱</div>
+          <h3>No Device Connected</h3>
+          <p>Connect your Android device via USB or WiFi ADB to browse files</p>
+        </div>
+      </div>
+      <!-- Source Queue Card -->
+      <div class="source-queue-card">
+        <div class="source-queue-header">
+          <div class="source-queue-title">
+            <span>📂 Source Folders</span>
+            <span class="source-count-badge" id="sourceCountBadge">0 added</span>
+          </div>
+          <div class="source-queue-actions">
+            <button class="btn btn-ghost btn-xs" onclick="addCurrentFolderAsSource()" title="Add currently browsed device folder">➕ Current</button>
+            <button class="btn btn-ghost btn-xs" onclick="addCheckedAsSources()" title="Add checked folders from list">➕ Checked</button>
+            <button class="btn btn-ghost btn-xs" onclick="openCustomPathModal()" title="Type or paste multiple folder paths">✏️ Paste</button>
+            <button class="btn btn-ghost btn-xs" onclick="clearSources()" title="Clear source list">Clear</button>
+          </div>
+        </div>
+        <!-- Quick presets -->
+        <div class="quick-sources-bar">
+          <span class="quick-label">Quick:</span>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Recordings')">🎙️ Recordings</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/DCIM')">📸 DCIM</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Pictures')">🖼️ Pictures</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Movies')">🎬 Movies</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Music')">🎵 Music</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Download')">📥 Download</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Documents')">📄 Documents</button>
+          <button class="quick-source-btn" onclick="addQuickSource('/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media')">💬 WhatsApp</button>
+        </div>
+        <!-- Chips of selected sources -->
+        <div class="source-chips-container" id="sourceChipsContainer">
+          <div class="source-chips-empty">No source folders queued. Select folders above, use Quick Add, or click Paste.</div>
+        </div>
+      </div>
+      <div class="backup-bar">
+        <div class="selected-info" id="selectionInfo">No files or sources selected</div>
+        <button class="btn btn-success" id="startBackupBtn" onclick="startBackup()" disabled>
+          🚀 Start Backup
+        </button>
+      </div>
+    </div>
+
+    <!-- Local Destination Browser -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2><span class="icon">💻</span> Backup Destination</h2>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-ghost btn-sm" onclick="browseLocalParent()" title="Go up one folder">⬆ Up</button>
+          <button class="btn btn-ghost btn-sm" onclick="triggerStatusFilePicker()" title="Select a phonebackup_status.json to auto-fill sources, destination, and resume">📂 Load Status JSON</button>
+          <input type="file" id="statusFileInput" accept=".json" style="display:none" onchange="handleStatusFileSelected(event)" />
+        </div>
+      </div>
+
+      <!-- Direct Destination Path Bar -->
+      <div class="dest-direct-bar">
+        <input type="text" id="destPathInput" class="dest-path-input" placeholder="Type or paste destination path (e.g. D:\Backups\Phone or C:\Users\...)" onkeydown="if(event.key==='Enter')setDirectDestination()" />
+        <button class="btn btn-secondary btn-sm" onclick="setDirectDestination()" title="Set and navigate to this folder">Set Path</button>
+      </div>
+
+      <!-- Detected Previous Backup Banner -->
+      <div id="statusDetectedBanner" class="status-detected-banner" style="display:none">
+        <div class="status-banner-left">
+          <span class="status-banner-icon">⚡</span>
+          <div>
+            <div class="status-banner-title">Previous Backup Found</div>
+            <div id="statusBannerDetail" class="status-banner-sub">Found phonebackup_status.json in this directory</div>
+          </div>
+        </div>
+        <div class="status-banner-actions">
+          <button class="btn btn-primary btn-xs" onclick="applyDetectedStatus()">Load & Resume</button>
+          <button class="btn btn-ghost btn-xs" onclick="dismissDetectedStatus()" title="Dismiss">✕</button>
+        </div>
+      </div>
+
+      <div class="breadcrumb" id="localBreadcrumb"></div>
+      <div class="panel-body" id="localFileList">
+        <div class="empty-state">
+          <div class="icon">💾</div>
+          <h3>Choose Destination</h3>
+          <p>Select where to save your backup on this PC</p>
+        </div>
+      </div>
+      <!-- Destination Preview Box -->
+      <div class="dest-preview-box" id="destPreviewBox">
+        <div class="dest-preview-title">📁 Destination Structure Preview:</div>
+        <div class="dest-preview-tree" id="destPreviewTree">
+          Select destination and source folders to see folder tree
+        </div>
+      </div>
+      <div class="backup-bar">
+        <div class="selected-info" id="destInfo">No destination selected</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transfer Dashboard -->
+  <div class="transfer-panel">
+    <div class="transfer-panel-header">
+      <h2><span class="icon">📊</span> Transfers</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="badge" style="background:rgba(16,185,129,0.15);color:#34d399;font-size:10px;padding:2px 6px;border-radius:4px;" title="Transfers run independently on Node.js in the background — safe even if Chrome sleeps or closes">🛡️ Background Process</span>
+        <span style="font-size:11px;color:var(--text-muted)" id="transferCount">No transfers</span>
+      </div>
+    </div>
+    <div id="transferList">
+      <div class="empty-state" style="padding:30px">
+        <p>Backups will appear here once started</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Paste Custom Paths Modal -->
+<div class="modal-backdrop" id="pasteModal" style="display:none" onclick="if(event.target===this)closeCustomPathModal()">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>✏️ Add Source Paths</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeCustomPathModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">
+        Paste or type one or more device paths separated by commas or newlines:
+      </p>
+      <textarea id="pastePathsInput" rows="6" class="modal-textarea" placeholder="/storage/emulated/0/Recordings,&#10;/storage/emulated/0/Movies,&#10;/storage/emulated/0/Pictures"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="closeCustomPathModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="submitPastedPaths()">➕ Add Paths</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Device Mismatch Warning Modal -->
+<div class="modal-backdrop" id="deviceMismatchModal" style="display:none" onclick="if(event.target===this)closeDeviceMismatchModal()">
+  <div class="modal-dialog" style="max-width:520px">
+    <div class="modal-header" style="border-bottom:1px solid rgba(245,158,11,0.25)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:22px">⚠️</span>
+        <h3 style="color:#f59e0b;font-size:16px;margin:0;font-weight:700">Different Phone Selected</h3>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeDeviceMismatchModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px 20px">
+      <p style="font-size:13px;line-height:1.5;color:var(--text-secondary);margin-bottom:14px">
+        This backup was previously created using a different device than the one currently selected in the top device dropdown.
+      </p>
+
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--text-muted)">Original Backup Device:</span>
+          <span id="mismatchOldDevice" style="font-size:12px;font-family:monospace;font-weight:600;color:var(--text-primary)">--</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--text-muted)">Selected in Dropdown:</span>
+          <span id="mismatchNewDevice" style="font-size:12px;font-family:monospace;font-weight:600;color:var(--accent)">--</span>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:#fca5a5;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);padding:10px 12px;border-radius:6px;margin-bottom:18px;line-height:1.4">
+        ⚠️ <strong>Important:</strong> If this is a completely different phone, continuing will download files from this new phone into the same backup folder, which may mix files together.
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="closeDeviceMismatchModal()">Cancel</button>
+        <button class="btn btn-warning btn-sm" onclick="confirmDeviceMismatchResume()">Switch Device & Resume</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Expanded Transfer View Modal -->
+<div class="modal-backdrop" id="transferModal" style="display:none" onclick="if(event.target===this)closeTransferModal()">
+  <div class="modal-dialog transfer-modal-dialog">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="modal-title-id" id="modalTransferId" style="font-size:12px;font-family:monospace;background:rgba(139,92,246,0.15);color:#c084fc;padding:2px 8px;border-radius:4px;font-weight:700">#id</span>
+        <span id="modalStatusBadge" class="badge badge-running"><span class="badge-dot"></span> RUNNING</span>
+        <span id="modalSpeedPill" class="speed-badge">⚡ 0 B/s</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="modalActionBtns"></span>
+        <button class="btn btn-ghost btn-sm" onclick="closeTransferModal()" style="font-size:14px;padding:4px 8px;">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <!-- Path banner -->
+      <div class="modal-path-banner" id="modalPathBanner">Source → Destination</div>
+
+      <!-- Quick Metrics Grid -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Transfer Speed</div>
+          <div class="metric-value text-accent" id="metricSpeed">0 B/s</div>
+          <div class="metric-sub" id="metricPeak">Peak: 0 B/s</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Progress</div>
+          <div class="metric-value text-purple" id="metricProgress">0%</div>
+          <div class="metric-sub" id="metricFilesCount">0 / 0 files</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Transferred Size</div>
+          <div class="metric-value text-success" id="metricSize">0 B</div>
+          <div class="metric-sub" id="metricTotalSize">Total: 0 B</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Estimated Time</div>
+          <div class="metric-value" id="metricETA">--</div>
+          <div class="metric-sub" id="metricSkipped">Skipped: 0</div>
+        </div>
+      </div>
+
+      <!-- Live Speed Chart Section -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="chart-title">📈 Live Speed History</span>
+          <div class="chart-meta">
+            <span id="chartPeakSpeed" style="color:#a78bfa">Peak: 0 MB/s</span>
+            <span id="chartCurrentSpeed" style="color:#38bdf8;font-weight:600">Now: 0 MB/s</span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="speedChartCanvas" width="800" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- Currently Transferring File Box -->
+      <div class="active-file-box" id="activeFileBox">
+        <div class="active-file-header">
+          <span class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block"></span>
+          <span>Currently Transferring:</span>
+        </div>
+        <div class="active-file-path" id="activeFilePath">Waiting for next file...</div>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="modal-tab-bar">
+        <button class="modal-tab active" id="tabBtnLogs" onclick="switchModalTab('logs')">📜 Activity Stream (<span id="logsTabCount">0</span>)</button>
+        <button class="modal-tab" id="tabBtnFailed" onclick="switchModalTab('failed')">❌ Failed Files (<span id="failedTabCount">0</span>)</button>
+      </div>
+
+      <!-- Tab Content: Activity Logs -->
+      <div class="modal-tab-content" id="tabContentLogs">
+        <div class="stream-log-list" id="streamLogList">
+          <div style="color:var(--text-muted);font-style:italic;text-align:center;padding:16px">No activity logs recorded yet</div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Failed Files -->
+      <div class="modal-tab-content" id="tabContentFailed" style="display:none">
+        <div id="failedFilesContainer">
+          <div style="color:var(--text-muted);font-style:italic;text-align:center;padding:16px">No failed files! ✨</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let devices = [];
+let selectedDevice = null;
+let devicePath = '/sdcard';
+let deviceFiles = [];
+let selectedRemoteDirs = new Set();
+let sourcePaths = new Set();
+let localPath = '';
+let filterText = '';
+let ws = null;
+let transfers = [];
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+function connectWS() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    document.getElementById('wsStatus').classList.remove('offline');
+    document.getElementById('wsStatus').title = 'Connected';
+  };
+
+  ws.onclose = () => {
+    document.getElementById('wsStatus').classList.add('offline');
+    document.getElementById('wsStatus').title = 'Disconnected';
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => {
+    document.getElementById('wsStatus').classList.add('offline');
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'transfer_update') {
+        updateTransfer(data.transfer);
+      }
+    } catch {}
+  };
+}
+
+// ── API Helpers ──────────────────────────────────────────────────────────────
+async function api(url, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  const res = await fetch(url, {
+    ...options,
+    headers,
+  });
+  let data = {};
+  const text = await res.text();
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { error: text || `HTTP ${res.status}` };
+  }
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+// ── Devices ──────────────────────────────────────────────────────────────────
+async function refreshDevices() {
+  try {
+    devices = await api('/api/devices');
+    const select = document.getElementById('deviceSelect');
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Select a device...</option>';
+    devices.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.serial;
+      opt.textContent = `${d.model || d.serial} (${d.transport})`;
+      select.appendChild(opt);
+    });
+    if (currentValue && devices.find(d => d.serial === currentValue)) {
+      select.value = currentValue;
+    }
+    if (devices.length > 0 && !select.value) {
+      select.value = devices[0].serial;
+      onDeviceChange();
+    }
+    showToast(`Found ${devices.length} device(s)`, 'info');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function onDeviceChange() {
+  const serial = document.getElementById('deviceSelect').value;
+  selectedDevice = serial || null;
+  if (serial) {
+    const dev = devices.find(d => d.serial === serial);
+    document.getElementById('deviceInfo').textContent = dev ? `${dev.transport.toUpperCase()} • ${dev.model || 'Unknown'}` : '';
+    devicePath = '/sdcard';
+    loadDeviceTree('/sdcard');
+  } else {
+    document.getElementById('deviceInfo').textContent = '';
+    const container = document.getElementById('deviceFileList');
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📱</div>
+        <h3>No Device Connected</h3>
+        <p>Connect your Android device via USB or WiFi ADB to browse files</p>
+      </div>`;
+  }
+}
+
+// ── WiFi Connect ─────────────────────────────────────────────────────────────
+async function connectWifi() {
+  const addr = document.getElementById('wifiAddress').value.trim();
+  if (!addr) return showToast('Enter an IP address', 'error');
+  try {
+    const res = await api('/api/devices/connect', {
+      method: 'POST',
+      body: JSON.stringify({ address: addr }),
+    });
+    showToast(`Connected: ${res.message}`, 'success');
+    setTimeout(refreshDevices, 1000);
+  } catch (err) {
+    showToast(`WiFi connect failed: ${err.message}`, 'error');
+  }
+}
+
+async function disconnectWifi() {
+  const addr = document.getElementById('wifiAddress').value.trim();
+  if (!addr) return;
+  try {
+    await api('/api/devices/disconnect', {
+      method: 'POST',
+      body: JSON.stringify({ address: addr }),
+    });
+    showToast('Disconnected', 'info');
+    setTimeout(refreshDevices, 500);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ── Device Tree View Engine ──────────────────────────────────────────────────
+const treeCache = new Map();
+let expandedPaths = new Set(['/sdcard']);
+
+async function loadDeviceTree(rootPath = '/sdcard') {
+  if (!selectedDevice) return;
+  const container = document.getElementById('deviceFileList');
+  container.className = 'panel-body tree-container';
+  container.innerHTML = '<div style="padding:24px;text-align:center"><div class="spinner"></div><div style="font-size:12px;color:var(--text-muted);margin-top:10px">Loading SD card tree...</div></div>';
+
+  try {
+    const entries = await api(`/api/browse?serial=${encodeURIComponent(selectedDevice)}&path=${encodeURIComponent(rootPath)}`);
+    treeCache.set(rootPath, entries);
+    renderTreeRoot(rootPath, entries);
+  } catch (err) {
+    container.innerHTML = `<div class="file-list-empty">❌ Failed to load storage: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function renderTreeRoot(rootPath, rootEntries) {
+  const container = document.getElementById('deviceFileList');
+  container.innerHTML = '';
+
+  const rootNode = document.createElement('div');
+  rootNode.className = 'tree-node is-dir';
+  rootNode.setAttribute('data-fpath', rootPath);
+
+  const isChecked = sourcePaths.has(rootPath) || selectedRemoteDirs.has(rootPath);
+  const isExpanded = expandedPaths.has(rootPath);
+  const hId = hashPath(rootPath);
+
+  rootNode.innerHTML = `
+    <div class="tree-row dir" onclick="onTreeRowClick('${escAttr(rootPath)}', event)">
+      <span class="tree-expander" onclick="toggleTreeNode('${escAttr(rootPath)}', event)">${isExpanded ? '▼' : '▶'}</span>
+      <input type="checkbox" class="tree-checkbox" ${isChecked ? 'checked' : ''} onchange="onTreeCheckboxChange('${escAttr(rootPath)}', this)" onclick="event.stopPropagation()">
+      <span class="tree-icon">${isExpanded ? '📂' : '📁'}</span>
+      <span class="tree-label"><strong>📱 Internal Storage (${escHtml(rootPath)})</strong></span>
+      <span class="tree-meta">${rootEntries.length} items</span>
+    </div>
+    <div class="tree-children" id="tree-children-${hId}" style="${isExpanded ? 'display:block' : 'display:none'}"></div>
+  `;
+
+  container.appendChild(rootNode);
+
+  const childrenContainer = document.getElementById(`tree-children-${hId}`);
+  renderTreeChildren(childrenContainer, rootEntries, 1);
+}
+
+function renderTreeChildren(container, entries, level = 1) {
+  if (!entries || entries.length === 0) {
+    container.innerHTML = '<div style="padding:4px 8px;font-size:11px;color:var(--text-muted);font-style:italic">Empty folder</div>';
+    return;
+  }
+
+  const filtered = filterText
+    ? entries.filter(e => e.isDir || matchFilter(e.name, filterText))
+    : entries;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="padding:4px 8px;font-size:11px;color:var(--text-muted);font-style:italic">No matching items</div>';
+    return;
+  }
+
+  let html = '';
+  for (const e of filtered) {
+    const isChecked = sourcePaths.has(e.path) || selectedRemoteDirs.has(e.path);
+    const isExpanded = expandedPaths.has(e.path);
+    const icon = e.isDir ? (isExpanded ? '📂' : '📁') : getFileIcon(e.name);
+    const sizeStr = e.isDir ? '' : formatBytes(e.size);
+    const expanderText = e.isDir ? (isExpanded ? '▼' : '▶') : '';
+    const expanderCls = e.isDir ? 'tree-expander' : 'tree-expander empty';
+    const rowCls = `tree-row${e.isDir ? ' dir' : ''}${isChecked ? ' selected' : ''}`;
+    const hId = hashPath(e.path);
+
+    html += `
+      <div class="tree-node${e.isDir ? ' is-dir' : ''}" data-fpath="${escAttr(e.path)}">
+        <div class="${rowCls}" onclick="onTreeRowClick('${escAttr(e.path)}', event)">
+          <span class="${expanderCls}" onclick="toggleTreeNode('${escAttr(e.path)}', event)">${expanderText}</span>
+          <input type="checkbox" class="tree-checkbox" ${isChecked ? 'checked' : ''} onchange="onTreeCheckboxChange('${escAttr(e.path)}', this)" onclick="event.stopPropagation()">
+          <span class="tree-icon">${icon}</span>
+          <span class="tree-label" title="${escAttr(e.path)}">${escHtml(e.name)}</span>
+          <span class="tree-meta">${sizeStr}</span>
+        </div>
+        ${e.isDir ? `<div class="tree-children" id="tree-children-${hId}" style="${isExpanded ? 'display:block' : 'display:none'}"></div>` : ''}
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+async function toggleTreeNode(path, event) {
+  if (event) event.stopPropagation();
+  const hId = hashPath(path);
+  const childContainer = document.getElementById(`tree-children-${hId}`);
+  if (!childContainer) return;
+
+  const nodeEl = childContainer.parentElement;
+  const expander = nodeEl.querySelector('.tree-expander');
+  const icon = nodeEl.querySelector('.tree-icon');
+
+  if (expandedPaths.has(path)) {
+    expandedPaths.delete(path);
+    childContainer.style.display = 'none';
+    if (expander) expander.textContent = '▶';
+    if (icon) icon.textContent = '📁';
+  } else {
+    expandedPaths.add(path);
+    childContainer.style.display = 'block';
+    if (expander) expander.textContent = '▼';
+    if (icon) icon.textContent = '📂';
+
+    if (treeCache.has(path)) {
+      renderTreeChildren(childContainer, treeCache.get(path));
+    } else {
+      childContainer.innerHTML = '<div class="tree-loading"><span class="spinner"></span> Loading folder...</div>';
+      try {
+        const children = await api(`/api/browse?serial=${encodeURIComponent(selectedDevice)}&path=${encodeURIComponent(path)}`);
+        treeCache.set(path, children);
+        renderTreeChildren(childContainer, children);
+      } catch (err) {
+        childContainer.innerHTML = `<div style="padding:4px 8px;font-size:11px;color:var(--danger)">❌ ${escHtml(err.message)}</div>`;
+      }
+    }
+  }
+}
+
+function onTreeRowClick(path, event) {
+  const hId = hashPath(path);
+  const childContainer = document.getElementById(`tree-children-${hId}`);
+  if (childContainer) {
+    toggleTreeNode(path, event);
+  }
+}
+
+function onTreeCheckboxChange(path, el) {
+  if (el.checked) {
+    sourcePaths.add(path);
+    selectedRemoteDirs.add(path);
+  } else {
+    sourcePaths.delete(path);
+    selectedRemoteDirs.delete(path);
+  }
+  document.querySelectorAll(`.tree-node[data-fpath="${CSS.escape(path)}"] > .tree-row > .tree-checkbox`).forEach(cb => {
+    cb.checked = el.checked;
+  });
+  renderSourcePaths();
+}
+
+function hashPath(p) {
+  return 'p_' + String(p).replace(/[^a-zA-Z0-9_]/g, '_');
+}
+
+function expandAllRoots() {
+  const rootEntries = treeCache.get('/sdcard') || [];
+  rootEntries.filter(e => e.isDir).forEach(e => {
+    if (!expandedPaths.has(e.path)) {
+      toggleTreeNode(e.path);
+    }
+  });
+}
+
+function collapseAllRoots() {
+  expandedPaths.clear();
+  expandedPaths.add('/sdcard');
+  const rootEntries = treeCache.get('/sdcard') || [];
+  renderTreeRoot('/sdcard', rootEntries);
+}
+
+function reloadTree() {
+  treeCache.clear();
+  expandedPaths.clear();
+  expandedPaths.add('/sdcard');
+  loadDeviceTree('/sdcard');
+  showToast('Device tree reloaded', 'info');
+}
+
+function selectAllFiles() {
+  const rootEntries = treeCache.get('/sdcard') || [];
+  const allSelected = rootEntries.every(e => sourcePaths.has(e.path));
+  if (allSelected) {
+    rootEntries.forEach(e => {
+      sourcePaths.delete(e.path);
+      selectedRemoteDirs.delete(e.path);
+    });
+  } else {
+    rootEntries.forEach(e => {
+      sourcePaths.add(e.path);
+      selectedRemoteDirs.add(e.path);
+    });
+  }
+  document.querySelectorAll('.tree-checkbox').forEach(cb => {
+    const p = cb.closest('.tree-node')?.getAttribute('data-fpath');
+    if (p) cb.checked = sourcePaths.has(p);
+  });
+  renderSourcePaths();
+}
+
+// ── Source Queue Management ──────────────────────────────────────────────────
+function getActiveSources() {
+  const all = new Set(sourcePaths);
+  for (const p of selectedRemoteDirs) all.add(p);
+  return Array.from(all);
+}
+
+function renderSourcePaths() {
+  const container = document.getElementById('sourceChipsContainer');
+  const countBadge = document.getElementById('sourceCountBadge');
+  countBadge.textContent = `${sourcePaths.size} added`;
+
+  if (sourcePaths.size === 0) {
+    container.innerHTML = '<div class="source-chips-empty">No source folders queued. Select folders above, use Quick Add, or click Paste.</div>';
+  } else {
+    let html = '';
+    for (const src of sourcePaths) {
+      html += `<span class="source-chip" title="${escAttr(src)}">
+        <span>📁</span>
+        <span class="chip-path">${escHtml(src)}</span>
+        <span class="chip-remove" onclick="removeSource('${escAttr(src)}')">✕</span>
+      </span>`;
+    }
+    container.innerHTML = html;
+  }
+  updateSelectionInfo();
+  renderDestinationPreview();
+}
+
+function addSource(p) {
+  if (!p) return;
+  p = p.trim();
+  if (!p) return;
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  sourcePaths.add(p);
+  renderSourcePaths();
+}
+
+function removeSource(p) {
+  sourcePaths.delete(p);
+  renderSourcePaths();
+}
+
+function clearSources() {
+  sourcePaths.clear();
+  selectedRemoteDirs.clear();
+  renderSourcePaths();
+  renderDeviceFiles();
+  showToast('Source folders cleared', 'info');
+}
+
+function addCurrentFolderAsSource() {
+  if (!devicePath) return showToast('No device folder browsed', 'error');
+  addSource(devicePath);
+  showToast(`Added current folder: ${devicePath}`, 'success');
+}
+
+function addCheckedAsSources() {
+  if (selectedRemoteDirs.size === 0) return showToast('No files or folders checked in list', 'info');
+  let count = 0;
+  for (const p of selectedRemoteDirs) {
+    sourcePaths.add(p);
+    count++;
+  }
+  selectedRemoteDirs.clear();
+  renderDeviceFiles();
+  renderSourcePaths();
+  showToast(`Added ${count} folder(s) to sources`, 'success');
+}
+
+function addQuickSource(p) {
+  addSource(p);
+  showToast(`Added: ${p}`, 'info');
+}
+
+function openCustomPathModal() {
+  document.getElementById('pasteModal').style.display = 'flex';
+  const textarea = document.getElementById('pastePathsInput');
+  textarea.focus();
+}
+
+function closeCustomPathModal() {
+  document.getElementById('pasteModal').style.display = 'none';
+}
+
+function submitPastedPaths() {
+  const val = document.getElementById('pastePathsInput').value.trim();
+  if (!val) {
+    closeCustomPathModal();
+    return;
+  }
+  const lines = val.split(/[\r\n,]+/).map(s => s.trim()).filter(Boolean);
+  let added = 0;
+  for (const p of lines) {
+    addSource(p);
+    added++;
+  }
+  document.getElementById('pastePathsInput').value = '';
+  closeCustomPathModal();
+  renderSourcePaths();
+  showToast(`Added ${added} source path(s)`, 'success');
+}
+
+// ── Destination Preview Tree ─────────────────────────────────────────────────
+function renderDestinationPreview() {
+  const container = document.getElementById('destPreviewTree');
+  if (!container) return;
+
+  const activeSources = getActiveSources();
+
+  if (!localPath) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-style:italic">Select a backup destination directory on this PC</div>';
+    return;
+  }
+
+  const localNorm = localPath.endsWith('\\') || localPath.endsWith('/') ? localPath.slice(0, -1) : localPath;
+  const isWin = localPath.includes('\\') || /^[A-Z]:/i.test(localPath);
+  const sep = isWin ? '\\' : '/';
+
+  if (activeSources.length === 0) {
+    container.innerHTML = `<div>📁 <strong>${escHtml(localNorm)}${sep}</strong></div>
+      <div style="color:var(--text-muted);margin-left:14px;font-style:italic">No source folders selected yet</div>`;
+    return;
+  }
+
+  let html = `<div>📁 <strong>${escHtml(localNorm)}${sep}</strong></div>`;
+
+  activeSources.forEach((src, idx) => {
+    const isLast = idx === activeSources.length - 1;
+    const branch = isLast ? '└──' : '├──';
+    const parts = src.split('/').filter(Boolean);
+    const folderName = parts[parts.length - 1] || 'root';
+    html += `<div class="tree-leaf">${branch} 📁 <strong>${escHtml(folderName)}${sep}</strong> <span style="color:var(--text-muted);font-size:10px">(${escHtml(src)})</span></div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function updateSelectionInfo() {
+  const activeSources = getActiveSources();
+  const count = activeSources.length;
+  const info = document.getElementById('selectionInfo');
+  const btn = document.getElementById('startBackupBtn');
+
+  if (count === 0) {
+    info.textContent = 'No files or sources selected';
+    btn.disabled = true;
+  } else {
+    const sourceNames = activeSources.map(s => {
+      const p = s.split('/').filter(Boolean);
+      return p[p.length - 1] || s;
+    });
+    const summaryStr = sourceNames.length <= 3
+      ? sourceNames.join(', ')
+      : `${sourceNames.slice(0, 3).join(', ')} +${sourceNames.length - 3} more`;
+    info.innerHTML = `<strong>${count}</strong> source(s): <span style="color:var(--text-primary)">${escHtml(summaryStr)}</span>`;
+    btn.disabled = !localPath || !selectedDevice;
+  }
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+function applyFilter() {
+  filterText = document.getElementById('filterInput').value.trim();
+  if (treeCache.has('/sdcard')) {
+    renderTreeRoot('/sdcard', treeCache.get('/sdcard'));
+  }
+}
+
+function setPreset(type) {
+  const presets = {
+    all: '',
+    photos: '*.jpg, *.jpeg, *.png, *.heic, *.heif, *.webp, *.raw, *.dng',
+    videos: '*.mp4, *.mkv, *.avi, *.mov, *.3gp, *.webm',
+    docs: '*.pdf, *.doc, *.docx, *.xls, *.xlsx, *.ppt, *.pptx, *.txt, *.csv',
+    music: '*.mp3, *.flac, *.aac, *.ogg, *.wav, *.m4a',
+  };
+  document.getElementById('filterInput').value = presets[type] || '';
+  filterText = presets[type] || '';
+
+  // Update active preset button
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(type));
+  });
+
+  if (treeCache.has('/sdcard')) {
+    renderTreeRoot('/sdcard', treeCache.get('/sdcard'));
+  }
+}
+
+function matchFilter(filename, filter) {
+  if (!filter) return true;
+  const patterns = filter.split(',').map(p => p.trim()).filter(Boolean);
+  return patterns.some(pattern => {
+    const regex = new RegExp(
+      '^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$',
+      'i'
+    );
+    return regex.test(filename);
+  });
+}
+
+// ── Local File Browser ───────────────────────────────────────────────────────
+async function browseLocal(newPath) {
+  localPath = newPath || '';
+  const input = document.getElementById('destPathInput');
+  if (input && document.activeElement !== input) {
+    input.value = localPath;
+  }
+
+  const container = document.getElementById('localFileList');
+  container.innerHTML = '<div style="padding:20px;text-align:center"><div class="spinner"></div></div>';
+
+  try {
+    const url = localPath
+      ? `/api/local/browse?path=${encodeURIComponent(localPath)}`
+      : '/api/local/browse';
+    const entries = await api(url);
+    renderLocalFiles(entries);
+    renderLocalBreadcrumb();
+    document.getElementById('destInfo').innerHTML = localPath
+      ? `Destination: <strong>${escHtml(localPath)}</strong>`
+      : 'No destination selected';
+    updateSelectionInfo();
+    renderDestinationPreview();
+
+    // Check if phonebackup_status.json exists in this folder
+    const statusEntry = entries.find(e => !e.isDir && (e.name === 'phonebackup_status.json' || e.name === 'backup_status.json'));
+    if (statusEntry) {
+      showDetectedBanner({ path: statusEntry.path });
+    } else {
+      dismissDetectedStatus();
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="file-list-empty">❌ ${err.message}</div>`;
+  }
+}
+
+function renderLocalFiles(entries) {
+  const container = document.getElementById('localFileList');
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="file-list-empty">Empty directory</div>';
+    return;
+  }
+
+  // Check for status file
+  const statusFile = entries.find(e => !e.isDir && (e.name === 'phonebackup_status.json' || e.name === 'backup_status.json'));
+
+  // Only show directories for destination picker
+  const dirs = entries.filter(e => e.isDir);
+  let html = '<ul class="file-list">';
+
+  // If status file exists, show a highlighted action item at the top
+  if (statusFile) {
+    html += `<li class="file-item status-file" data-statuspath="${escAttr(statusFile.path)}" onclick="loadStatusFromLocalFile(this.getAttribute('data-statuspath'))">
+      <span class="file-icon">⚡</span>
+      <span class="file-name" style="color:var(--accent);font-weight:600;">${escHtml(statusFile.name)}</span>
+      <span class="status-file-badge">Load & Resume</span>
+    </li>`;
+  }
+
+  for (const f of dirs) {
+    html += `<li class="file-item dir" data-lpath="${escAttr(f.path)}" ondblclick="onLocalDirDblClick(this)">
+      <span class="file-icon">📁</span>
+      <span class="file-name">${escHtml(f.name)}</span>
+    </li>`;
+  }
+  html += '</ul>';
+  container.innerHTML = html;
+}
+
+function onLocalDirDblClick(el) {
+  browseLocal(el.getAttribute('data-lpath'));
+}
+
+function onLocalBreadcrumbClick(el) {
+  browseLocal(el.getAttribute('data-lpath'));
+}
+
+function renderLocalBreadcrumb() {
+  const bc = document.getElementById('localBreadcrumb');
+  if (!localPath) {
+    bc.innerHTML = '<span class="breadcrumb-item" onclick="browseLocal()">Drives</span>';
+    return;
+  }
+
+  // Handle Windows paths
+  const isWin = localPath.includes('\\') || /^[A-Z]:/.test(localPath);
+  const sep = isWin ? '\\' : '/';
+  const parts = localPath.split(/[/\\]/).filter(Boolean);
+
+  let html = `<span class="breadcrumb-item" onclick="browseLocal()">Drives</span>`;
+  let accumulated = '';
+  for (const part of parts) {
+    accumulated += (accumulated && !accumulated.endsWith('\\') && !accumulated.endsWith('/')) ? sep + part : part + (part.endsWith(':') ? sep : '');
+    const p = accumulated;
+    html += `<span class="breadcrumb-sep">/</span><span class="breadcrumb-item" data-lpath="${escAttr(p)}" onclick="onLocalBreadcrumbClick(this)">${escHtml(part)}</span>`;
+  }
+  bc.innerHTML = html;
+}
+
+function browseLocalParent() {
+  if (!localPath) return;
+  const isWin = localPath.includes('\\');
+  const sep = isWin ? '\\' : '/';
+  const parts = localPath.split(/[/\\]/).filter(Boolean);
+  if (parts.length <= 1) {
+    browseLocal('');
+  } else {
+    parts.pop();
+    const parent = isWin ? parts.join(sep) + sep : '/' + parts.join('/');
+    browseLocal(parent);
+  }
+}
+
+// ── Direct Destination & Status JSON Handlers ────────────────────────────────
+
+async function setDirectDestination(customPath) {
+  const input = document.getElementById('destPathInput');
+  const target = (customPath !== undefined ? customPath : input.value).trim();
+  if (!target) {
+    browseLocal('');
+    return;
+  }
+
+  try {
+    const res = await api('/api/local/set-destination', {
+      method: 'POST',
+      body: JSON.stringify({ path: target }),
+    });
+
+    if (res.isStatusFile) {
+      await applyImportedTransferData(res);
+      return;
+    }
+
+    localPath = res.path;
+    input.value = res.path;
+    await browseLocal(res.path);
+
+    if (res.created) {
+      showToast(`Created folder and set destination: ${res.path}`, 'success');
+    } else {
+      showToast(`Destination set: ${res.path}`, 'success');
+    }
+
+    if (res.hasStatus && res.statusInfo) {
+      showDetectedBanner(res.statusInfo);
+    }
+  } catch (err) {
+    showToast(`Cannot set destination: ${err.message}`, 'error');
+  }
+}
+
+function triggerStatusFilePicker() {
+  const input = document.getElementById('statusFileInput');
+  input.value = '';
+  input.click();
+}
+
+async function handleStatusFileSelected(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    await loadAndApplyStatusData(data);
+  } catch (err) {
+    showToast(`Error reading status file: ${err.message}`, 'error');
+  }
+}
+
+async function loadAndApplyStatusData(data) {
+  if (!data || typeof data !== 'object') {
+    return showToast('Invalid status JSON file', 'error');
+  }
+  const sources = data.sources || data.remoteDirs || (data.remoteDir ? [data.remoteDir] : []);
+  if (sources.length === 0 || !data.localDir) {
+    return showToast('Status file is missing sources or destination path', 'error');
+  }
+
+  try {
+    const res = await api('/api/transfer/import', {
+      method: 'POST',
+      body: JSON.stringify({ statusData: data }),
+    });
+    await applyImportedTransferData(res);
+  } catch (err) {
+    showToast(`Failed importing status: ${err.message}`, 'error');
+  }
+}
+
+async function applyImportedTransferData(res) {
+  const sources = res.sources || [];
+  localPath = res.localDir;
+
+  const destInput = document.getElementById('destPathInput');
+  if (destInput) destInput.value = localPath;
+
+  // Fill source paths
+  sourcePaths.clear();
+  for (const s of sources) {
+    sourcePaths.add(s);
+  }
+  renderSourcePaths();
+
+  // Fill filters if present
+  if (res.filters && res.filters.include) {
+    const fVal = Array.isArray(res.filters.include) ? res.filters.include.join(', ') : res.filters.include;
+    document.getElementById('filterInput').value = fVal;
+    filterText = fVal;
+  }
+
+  // Auto-select device if connected
+  if (res.deviceSerial && devices.some(d => d.serial === res.deviceSerial)) {
+    selectDevice(res.deviceSerial);
+  }
+
+  // Browse destination folder
+  await browseLocal(localPath);
+  updateSelectionInfo();
+  renderDestinationPreview();
+  await loadTransfers();
+
+  showToast(`✅ Loaded backup: ${sources.length} source(s) & destination filled!`, 'success');
+}
+
+let detectedStatusPath = '';
+
+function showDetectedBanner(info) {
+  const banner = document.getElementById('statusDetectedBanner');
+  const detail = document.getElementById('statusBannerDetail');
+  if (!banner) return;
+
+  detectedStatusPath = (info && info.path) ? info.path : (localPath || '');
+
+  if (info && info.totalFiles) {
+    detail.textContent = `Found ${info.sources ? info.sources.length : 1} source(s) — ${info.doneFiles || 0}/${info.totalFiles} files processed (Status: ${info.status || 'saved'})`;
+  } else {
+    detail.textContent = `Found phonebackup_status.json in this directory`;
+  }
+  banner.style.display = 'flex';
+}
+
+function dismissDetectedStatus() {
+  detectedStatusPath = '';
+  const banner = document.getElementById('statusDetectedBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+async function applyDetectedStatus() {
+  const targetPath = detectedStatusPath || localPath;
+  if (!targetPath) return;
+  try {
+    const res = await api('/api/transfer/import', {
+      method: 'POST',
+      body: JSON.stringify({ filePath: targetPath }),
+    });
+    dismissDetectedStatus();
+    await applyImportedTransferData(res);
+    if (res && res.id) {
+      await resumeTransfer(res.id);
+    }
+  } catch (err) {
+    showToast(`Failed loading detected status: ${err.message}`, 'error');
+  }
+}
+
+async function loadStatusFromLocalFile(filePath) {
+  try {
+    const res = await api('/api/transfer/import', {
+      method: 'POST',
+      body: JSON.stringify({ filePath }),
+    });
+    dismissDetectedStatus();
+    await applyImportedTransferData(res);
+  } catch (err) {
+    showToast(`Failed loading status file: ${err.message}`, 'error');
+  }
+}
+
+// ── Start Backup ─────────────────────────────────────────────────────────────
+async function startBackup() {
+  const activeSources = getActiveSources();
+
+  if (!selectedDevice || activeSources.length === 0 || !localPath) {
+    return showToast('Select device, at least one source folder, and destination', 'error');
+  }
+
+  // Parse filter into include patterns
+  const include = filterText
+    ? filterText.split(',').map(p => p.trim()).filter(Boolean)
+    : [];
+
+  try {
+    const res = await api('/api/transfer/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        deviceSerial: selectedDevice,
+        remoteDirs: activeSources,
+        localDir: localPath,
+        filters: include.length > 0 ? { include } : {},
+      }),
+    });
+    showToast(`Backup started for ${activeSources.length} source folder(s)`, 'success');
+  } catch (err) {
+    showToast(`Failed: ${err.message}`, 'error');
+  }
+
+  selectedRemoteDirs.clear();
+  sourcePaths.clear();
+  renderSourcePaths();
+  renderDeviceFiles();
+  renderDestinationPreview();
+  loadTransfers();
+}
+
+// ── Transfer Management & Live Visualization ────────────────────────────────
+let activeModalTransferId = null;
+let currentModalTab = 'logs';
+const speedHistoryMap = new Map(); // transferId -> array of numbers (MB/s)
+const peakSpeedMap = new Map(); // transferId -> max speed (MB/s)
+
+function normalizeTransfer(t) {
+  if (!t) return t;
+  t.done_files = t.done_files ?? t.doneFiles ?? 0;
+  t.doneFiles = t.done_files;
+  t.total_files = t.total_files ?? t.totalFiles ?? 0;
+  t.totalFiles = t.total_files;
+  t.skipped_files = t.skipped_files ?? t.skippedFiles ?? 0;
+  t.skippedFiles = t.skipped_files;
+  t.failed_files = t.failed_files ?? t.failedFiles ?? 0;
+  t.failedFiles = t.failed_files;
+  t.done_bytes = t.done_bytes ?? t.doneBytes ?? 0;
+  t.doneBytes = t.done_bytes;
+  t.total_bytes = t.total_bytes ?? t.totalBytes ?? 0;
+  t.totalBytes = t.total_bytes;
+  t.active_serial = t.active_serial ?? t.device_serial ?? t.deviceSerial ?? '';
+  t.device_serial = t.active_serial;
+  t.deviceSerial = t.active_serial;
+  t.device_model = t.device_model ?? t.deviceModel ?? '';
+  t.deviceModel = t.device_model;
+  t.known_serials = t.known_serials ?? t.deviceSerials ?? [];
+  t.deviceSerials = t.known_serials;
+  t.local_dir = t.local_dir ?? t.localDir ?? '';
+  t.localDir = t.local_dir;
+  t.speed_bps = t.speed_bps ?? t.speedBps ?? 0;
+  t.speedBps = t.speed_bps;
+  t.eta_seconds = t.eta_seconds ?? t.etaSeconds ?? 0;
+  t.etaSeconds = t.eta_seconds;
+  t.recent_logs = t.recent_logs ?? t.recentLogs ?? [];
+  t.recentLogs = t.recent_logs;
+  t.failed_list = t.failed_list ?? t.failedList ?? [];
+  t.failedList = t.failed_list;
+  t.current_file = t.current_file ?? t.currentFile ?? '';
+  t.currentFile = t.current_file;
+  t.current_file_size = t.current_file_size ?? t.currentFileSize ?? 0;
+  t.currentFileSize = t.current_file_size;
+  t.current_file_done = t.current_file_done ?? t.currentFileDone ?? 0;
+  t.currentFileDone = t.current_file_done;
+  t.created_at = t.created_at ?? t.createdAt ?? '';
+  t.createdAt = t.created_at;
+  t.updated_at = t.updated_at ?? t.updatedAt ?? '';
+  t.updatedAt = t.updated_at;
+  return t;
+}
+
+async function loadTransfers() {
+  try {
+    const list = await api('/api/transfer/list');
+    transfers = (list || []).map(normalizeTransfer);
+    renderTransfers();
+  } catch {}
+}
+
+function updateTransfer(rawSummary) {
+  if (!rawSummary || !rawSummary.id) return;
+  const summary = normalizeTransfer(rawSummary);
+  const idx = transfers.findIndex(t => t.id === summary.id);
+  if (idx >= 0) {
+    transfers[idx] = summary;
+  } else {
+    transfers.unshift(summary);
+  }
+
+  // Update speed history
+  const speedMB = (summary.speed_bps || 0) / (1024 * 1024);
+  let history = speedHistoryMap.get(summary.id);
+  if (!history) {
+    history = [];
+    speedHistoryMap.set(summary.id, history);
+  }
+  if (summary.status === 'running' || speedMB > 0) {
+    history.push(parseFloat(speedMB.toFixed(2)));
+    if (history.length > 60) history.shift();
+    const currentPeak = peakSpeedMap.get(summary.id) || 0;
+    if (speedMB > currentPeak) {
+      peakSpeedMap.set(summary.id, speedMB);
+    }
+  }
+
+  renderTransfers();
+
+  // If modal is currently open for this transfer, update it in real time
+  if (activeModalTransferId === summary.id) {
+    updateModalUI(summary);
+  }
+}
+
+function renderTransfers() {
+  const container = document.getElementById('transferList');
+  const countEl = document.getElementById('transferCount');
+
+  if (transfers.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:30px"><p>Backups will appear here once started</p></div>';
+    countEl.textContent = 'No transfers';
+    return;
+  }
+
+  countEl.textContent = `${transfers.length} transfer(s)`;
+
+  // Sort: running first, then by creation date desc
+  const sorted = [...transfers].sort((a, b) => {
+    const order = { running: 0, scanning: 1, paused: 2, pending: 3, completed: 4, failed: 5, cancelled: 6 };
+    const ao = order[a.status] ?? 99;
+    const bo = order[b.status] ?? 99;
+    if (ao !== bo) return ao - bo;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  let html = '';
+  for (const t of sorted) {
+    const pct = t.totalBytes > 0 ? Math.round((t.doneBytes / t.totalBytes) * 100) : 0;
+    const progressClass = t.status === 'completed' ? 'completed' : t.status === 'failed' ? 'failed' : t.status === 'paused' ? 'paused' : '';
+    const isRunning = t.status === 'running' || t.status === 'scanning';
+    const speedBps = t.speedBps || 0;
+
+    html += `<div class="transfer-card ${isRunning ? 'is-running' : ''}" onclick="openTransferModal('${t.id}')">
+      <div class="transfer-card-header">
+        <div class="transfer-info">
+          <span class="transfer-id">#${t.id}</span>
+          <span class="badge badge-${t.status}"><span class="badge-dot"></span> ${t.status}</span>
+          ${isRunning && speedBps > 0 ? `<span class="speed-badge">⚡ ${formatBytes(speedBps)}/s</span>` : ''}
+          <span class="transfer-path" title="${escHtml(t.remoteDir || (t.sources ? t.sources.join(', ') : ''))}">${escHtml(t.remoteDir || (t.sources ? t.sources.join(', ') : ''))} → ${escHtml(t.localDir)}</span>
+        </div>
+        <div class="transfer-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" onclick="openTransferModal('${t.id}')" title="Open expanded live view">🔍 Details</button>
+          ${(t.status === 'running' || t.status === 'scanning') ? `<button class="btn btn-warning btn-sm" onclick="pauseTransfer('${t.id}')">⏸ Pause</button>` : ''}
+          ${(t.status === 'paused' || t.status === 'pending') ? `<button class="btn btn-success btn-sm" onclick="resumeTransfer('${t.id}')">▶ Resume</button>` : ''}
+          ${['running','paused','scanning','pending'].includes(t.status) ? `<button class="btn btn-danger btn-sm" onclick="cancelTransfer('${t.id}')">✕</button>` : ''}
+        </div>
+      </div>
+      <div class="transfer-progress">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill ${progressClass}" style="width:${pct}%"></div>
+        </div>
+      </div>
+      <div class="transfer-stats">
+        <div class="stat">📊 <span class="stat-value">${pct}%</span></div>
+        ${t.etaSeconds > 0 && isRunning ? `<div class="stat">⏳ <span class="stat-value">~${(t.etaSeconds < 3600 ? Math.round(t.etaSeconds/60) + 'm' : (t.etaSeconds/3600).toFixed(1) + 'h')} left</span></div>` : ''}
+        <div class="stat">✅ <span class="stat-value">${t.doneFiles}</span></div>
+        ${t.skippedFiles > 0 ? `<div class="stat">⏭ <span class="stat-value">${t.skippedFiles}</span></div>` : ''}
+        <div class="stat" style="${t.failedFiles > 0 ? 'color:#f87171;font-weight:700;cursor:pointer' : ''}" onclick="${t.failedFiles > 0 ? `event.stopPropagation(); openTransferModal('${t.id}', 'failed')` : ''}">
+          ❌ <span class="stat-value" style="${t.failedFiles > 0 ? 'color:#f87171' : ''}">${t.failedFiles}</span> ${t.failedFiles > 0 ? '(view failed)' : ''}
+        </div>
+        <div class="stat">📁 <span class="stat-value">${t.doneFiles + t.skippedFiles + t.failedFiles}/${t.totalFiles}</span></div>
+        <div class="stat">💾 <span class="stat-value">${formatBytes(t.doneBytes)} / ${formatBytes(t.totalBytes)}</span></div>
+      </div>
+      ${t.currentFile ? `<div class="current-file-preview">📄 <span>${escHtml(t.currentFile)}${t.currentFileSize > 0 && t.currentFileDone > 0 ? ' (' + formatBytes(t.currentFileDone) + '/' + formatBytes(t.currentFileSize) + ')' : ''}</span></div>` : ''}
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function openTransferModal(id, defaultTab = 'logs') {
+  activeModalTransferId = id;
+  const modal = document.getElementById('transferModal');
+  modal.style.display = 'flex';
+  switchModalTab(defaultTab);
+
+  const t = transfers.find(x => x.id === id);
+  if (t) {
+    updateModalUI(t);
+  }
+}
+
+function closeTransferModal() {
+  activeModalTransferId = null;
+  document.getElementById('transferModal').style.display = 'none';
+}
+
+function switchModalTab(tab) {
+  currentModalTab = tab;
+  const btnLogs = document.getElementById('tabBtnLogs');
+  const btnFailed = document.getElementById('tabBtnFailed');
+  const contentLogs = document.getElementById('tabContentLogs');
+  const contentFailed = document.getElementById('tabContentFailed');
+
+  if (tab === 'logs') {
+    btnLogs.classList.add('active');
+    btnFailed.classList.remove('active');
+    contentLogs.style.display = 'block';
+    contentFailed.style.display = 'none';
+  } else {
+    btnLogs.classList.remove('active');
+    btnFailed.classList.add('active');
+    contentLogs.style.display = 'none';
+    contentFailed.style.display = 'block';
+  }
+}
+
+function updateModalUI(t) {
+  if (!t) return;
+
+  // Header & IDs
+  document.getElementById('modalTransferId').textContent = `#${t.id}`;
+  const badge = document.getElementById('modalStatusBadge');
+  badge.className = `badge badge-${t.status}`;
+  badge.innerHTML = `<span class="badge-dot"></span> ${t.status.toUpperCase()}`;
+
+  const speedPill = document.getElementById('modalSpeedPill');
+  const speedBps = t.speedBps || 0;
+  speedPill.textContent = `⚡ ${formatBytes(speedBps)}/s`;
+  speedPill.style.display = (t.status === 'running' || speedBps > 0) ? 'inline-flex' : 'none';
+
+  const actionSlot = document.getElementById('modalActionBtns');
+  if (actionSlot) {
+    let actHtml = '';
+    if (t.status === 'running' || t.status === 'scanning') {
+      actHtml = `<button class="btn btn-warning btn-xs" onclick="pauseTransfer('${t.id}')">⏸ Pause</button>`;
+    } else if (t.status === 'paused' || t.status === 'pending') {
+      actHtml = `<button class="btn btn-success btn-xs" onclick="resumeTransfer('${t.id}')">▶ Resume</button>`;
+    }
+    actionSlot.innerHTML = actHtml;
+  }
+
+  // Banner
+  const srcStr = t.remoteDir || (t.sources ? t.sources.join(', ') : '');
+  document.getElementById('modalPathBanner').textContent = `${srcStr} ➔ ${t.localDir}`;
+
+  // Metrics
+  const pct = t.totalBytes > 0 ? Math.round((t.doneBytes / t.totalBytes) * 100) : 0;
+  const processedFiles = t.doneFiles + t.skippedFiles + t.failedFiles;
+  const peakSpeed = peakSpeedMap.get(t.id) || (speedBps / (1024 * 1024));
+
+  document.getElementById('metricSpeed').textContent = `${formatBytes(speedBps)}/s`;
+  document.getElementById('metricPeak').textContent = `Peak: ${(peakSpeed).toFixed(1)} MB/s`;
+
+  document.getElementById('metricProgress').textContent = `${pct}%`;
+  document.getElementById('metricFilesCount').textContent = `${processedFiles} / ${t.totalFiles} files`;
+
+  document.getElementById('metricSize').textContent = formatBytes(t.doneBytes);
+  document.getElementById('metricTotalSize').textContent = `Total: ${formatBytes(t.totalBytes)}`;
+
+  // Calculate remaining stable ETA
+  let etaStr = '--';
+  if (t.status === 'running') {
+    if (t.etaSeconds > 0) {
+      const s = t.etaSeconds;
+      if (s < 60) {
+        etaStr = `~${s}s left`;
+      } else if (s < 3600) {
+        etaStr = `~${Math.round(s / 60)}m left`;
+      } else {
+        const hours = (s / 3600).toFixed(1);
+        etaStr = `~${hours}h left`;
+      }
+    } else if (speedBps > 1024 && t.totalBytes > t.doneBytes) {
+      const remainingBytes = t.totalBytes - t.doneBytes;
+      const remainingSeconds = remainingBytes / speedBps;
+      if (remainingSeconds < 60) {
+        etaStr = `~${Math.round(remainingSeconds)}s left`;
+      } else if (remainingSeconds < 3600) {
+        etaStr = `~${Math.round(remainingSeconds / 60)}m left`;
+      } else {
+        const hours = (remainingSeconds / 3600).toFixed(1);
+        etaStr = `~${hours}h left`;
+      }
+    }
+  } else if (t.status === 'completed') {
+    etaStr = 'Completed';
+  } else if (t.status === 'paused') {
+    etaStr = 'Paused';
+  }
+  document.getElementById('metricETA').textContent = etaStr;
+  document.getElementById('metricSkipped').textContent = t.skippedFiles > 0 ? `Skipped: ${t.skippedFiles} | Failed: ${t.failedFiles}` : `Failed: ${t.failedFiles}`;
+
+  // Active file with in-flight byte progress
+  const activeBox = document.getElementById('activeFileBox');
+  const activePath = document.getElementById('activeFilePath');
+  if (t.currentFile) {
+    activeBox.style.display = 'block';
+    let fileText = t.currentFile;
+    if (t.currentFileSize > 0 && t.currentFileDone > 0) {
+      const fPct = Math.min(100, Math.round((t.currentFileDone / t.currentFileSize) * 100));
+      fileText += ` — ${formatBytes(t.currentFileDone)} / ${formatBytes(t.currentFileSize)} (${fPct}%)`;
+    }
+    activePath.textContent = fileText;
+  } else if (t.status === 'running') {
+    activeBox.style.display = 'block';
+    activePath.textContent = 'Processing file pipeline...';
+  } else {
+    activeBox.style.display = 'none';
+  }
+
+  // Draw Live Speed Chart
+  drawSpeedChart(t.id);
+
+  // Activity Stream Logs
+  const logs = t.recentLogs || [];
+  document.getElementById('logsTabCount').textContent = logs.length;
+  const logContainer = document.getElementById('streamLogList');
+  if (logs.length === 0) {
+    logContainer.innerHTML = '<div style="color:var(--text-muted);font-style:italic;text-align:center;padding:16px">No activity logs recorded yet</div>';
+  } else {
+    let logsHtml = '';
+    // Reverse so newest at top
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const l = logs[i];
+      const p = l.remote_path || l.remotePath || '';
+      logsHtml += `<div class="stream-log-item">
+        <span class="stream-log-time">${escHtml(l.time || '')}</span>
+        <span class="stream-log-tag ${l.status}">${escHtml(l.status)}</span>
+        <span class="stream-log-path" title="${escAttr(p)}">${escHtml(p)}</span>
+        <span class="stream-log-size">${formatBytes(l.size || 0)}</span>
+      </div>`;
+    }
+    logContainer.innerHTML = logsHtml;
+  }
+
+  // Failed Files Section
+  const failedCount = t.failedFiles || (t.failedList ? t.failedList.length : 0);
+  document.getElementById('failedTabCount').textContent = failedCount;
+  const failedContainer = document.getElementById('failedFilesContainer');
+
+  if (failedCount === 0) {
+    failedContainer.innerHTML = `<div style="color:var(--text-muted);font-style:italic;text-align:center;padding:24px">
+      <div style="font-size:24px;margin-bottom:6px">✨</div>
+      <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px">No failed files!</div>
+      <div>All processed files were transferred or verified successfully.</div>
+    </div>`;
+  } else {
+    const failedItems = t.failedList || [];
+    let rowsHtml = '';
+    for (const f of failedItems) {
+      const fp = f.remote_path || f.remotePath || '';
+      rowsHtml += `<div class="failed-item-row">
+        <div class="failed-item-path">❌ ${escHtml(fp)} (${formatBytes(f.size || 0)})</div>
+        <div class="failed-item-err">Error: ${escHtml(f.error || 'ADB pull error or connection timeout')}</div>
+      </div>`;
+    }
+    if (failedItems.length === 0 && failedCount > 0) {
+      rowsHtml = `<div style="padding:12px;color:var(--text-muted);font-size:11px">Failed files will be loaded when retried or re-scanned.</div>`;
+    }
+
+    failedContainer.innerHTML = `
+      <div class="failed-box-alert">
+        <div>
+          <strong style="color:#f87171">⚠️ ${failedCount} file(s) failed during transfer</strong>
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">These files are preserved in phonebackup_status.json and can be retried immediately.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="retryFailedTransfer('${t.id}')">🔄 Retry Failed Files</button>
+      </div>
+      <div class="failed-items-table">
+        ${rowsHtml}
+      </div>
+    `;
+  }
+}
+
+function drawSpeedChart(transferId) {
+  const canvas = document.getElementById('speedChartCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const history = speedHistoryMap.get(transferId) || [0];
+  const currentSpeed = history.length > 0 ? history[history.length - 1] : 0;
+  const peakSpeed = peakSpeedMap.get(transferId) || Math.max(...history, 0);
+
+  document.getElementById('chartPeakSpeed').textContent = `Peak: ${peakSpeed.toFixed(1)} MB/s`;
+  document.getElementById('chartCurrentSpeed').textContent = `Now: ${currentSpeed.toFixed(1)} MB/s`;
+
+  // Determine max Y scale (at least 10 MB/s for nice scale)
+  const maxY = Math.max(10, Math.ceil(peakSpeed * 1.25));
+
+  // Draw horizontal grid lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#64748b';
+  ctx.font = '9px monospace';
+
+  const steps = 3;
+  for (let i = 0; i <= steps; i++) {
+    const yVal = (maxY / steps) * i;
+    const yPos = height - 16 - (yVal / maxY) * (height - 30);
+    ctx.beginPath();
+    ctx.moveTo(35, yPos);
+    ctx.lineTo(width - 10, yPos);
+    ctx.stroke();
+    ctx.fillText(`${yVal.toFixed(0)} MB/s`, 2, yPos + 3);
+  }
+
+  if (history.length < 2) {
+    // Just a baseline if no history yet
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+    ctx.beginPath();
+    ctx.moveTo(35, height - 16);
+    ctx.lineTo(width - 10, height - 16);
+    ctx.stroke();
+    return;
+  }
+
+  const plotXStart = 35;
+  const plotWidth = width - 45;
+  const plotHeight = height - 30;
+  const stepX = plotWidth / Math.max(history.length - 1, 1);
+
+  // Build points
+  const points = history.map((val, idx) => {
+    const x = plotXStart + idx * stepX;
+    const y = height - 16 - (val / maxY) * plotHeight;
+    return { x, y };
+  });
+
+  // Gradient area fill
+  const grad = ctx.createLinearGradient(0, 0, 0, height);
+  grad.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+  grad.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, height - 16);
+  for (const pt of points) {
+    ctx.lineTo(pt.x, pt.y);
+  }
+  ctx.lineTo(points[points.length - 1].x, height - 16);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Stroke line
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Highlight latest point
+  const lastPt = points[points.length - 1];
+  ctx.beginPath();
+  ctx.arc(lastPt.x, lastPt.y, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#60a5fa';
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+async function retryFailedTransfer(id) {
+  try {
+    const res = await api(`/api/transfer/retry-failed/${id}`, { method: 'POST' });
+    showToast(`Retrying ${res.retriedCount || 0} failed file(s)`, 'success');
+    if (res.transfer) {
+      updateTransfer(res.transfer);
+    }
+  } catch (err) {
+    showToast(`Retry failed: ${err.message}`, 'error');
+  }
+}
+
+async function pauseTransfer(id) {
+  const t = transfers.find(x => x.id === id);
+  if (t) {
+    t.status = 'paused';
+    renderTransfers();
+    if (activeModalTransferId === id) updateModalUI(t);
+  }
+  try {
+    const res = await api(`/api/transfer/pause/${id}`, { method: 'POST' });
+    showToast('Transfer paused', 'info');
+    if (res && res.id) updateTransfer(res);
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (t) { t.status = 'running'; renderTransfers(); }
+  }
+}
+
+let pendingResumeTransferId = null;
+let pendingResumeDeviceSerial = null;
+
+function closeDeviceMismatchModal() {
+  pendingResumeTransferId = null;
+  pendingResumeDeviceSerial = null;
+  const m = document.getElementById('deviceMismatchModal');
+  if (m) m.style.display = 'none';
+}
+
+function confirmDeviceMismatchResume() {
+  const id = pendingResumeTransferId;
+  const newSerial = pendingResumeDeviceSerial;
+  closeDeviceMismatchModal();
+  if (id && newSerial) {
+    performResumeTransfer(id, newSerial);
+  }
+}
+
+async function resumeTransfer(id) {
+  const t = transfers.find(x => x.id === id);
+  if (!t) return;
+
+  const currentDropdownSerial = selectedDevice;
+  const known = (t.known_serials || t.deviceSerials || []);
+  const currentSerial = t.active_serial || t.device_serial || t.deviceSerial || '';
+  const isSamePhone = (currentDropdownSerial === currentSerial || known.includes(currentDropdownSerial));
+
+  // Only prompt mismatch if dropdown device is selected and DIFFERENT from any known ID of this phone
+  if (currentDropdownSerial && currentSerial && !isSamePhone) {
+    pendingResumeTransferId = id;
+    pendingResumeDeviceSerial = currentDropdownSerial;
+
+    const oldDev = devices.find(d => d.serial === currentSerial);
+    const newDev = devices.find(d => d.serial === currentDropdownSerial);
+
+    const oldText = `${currentSerial} (${t.device_model || t.deviceModel || (oldDev ? oldDev.model : 'Unknown')})`;
+    const newText = `${currentDropdownSerial} (${newDev ? newDev.model : 'Unknown'})`;
+
+    document.getElementById('mismatchOldDevice').textContent = oldText;
+    document.getElementById('mismatchNewDevice').textContent = newText;
+
+    const modal = document.getElementById('deviceMismatchModal');
+    if (modal) modal.style.display = 'flex';
+    return;
+  }
+
+  // If matching or same phone on different transport (USB vs WiFi), resume normally
+  await performResumeTransfer(id, currentDropdownSerial || currentSerial);
+}
+
+async function performResumeTransfer(id, targetSerial) {
+  const t = transfers.find(x => x.id === id);
+  if (t) {
+    t.status = 'running';
+    if (targetSerial) {
+      t.active_serial = targetSerial;
+      t.device_serial = targetSerial;
+      t.deviceSerial = targetSerial;
+    }
+    renderTransfers();
+    if (activeModalTransferId === id) updateModalUI(t);
+  }
+  try {
+    const res = await api(`/api/transfer/resume/${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ deviceSerial: targetSerial || '' }),
+    });
+    showToast('Transfer resumed' + (targetSerial ? ` on ${targetSerial}` : ''), 'success');
+    if (res && res.id) updateTransfer(res);
+  } catch (err) {
+    showToast(err.message, 'error');
+    if (t) { t.status = 'paused'; renderTransfers(); }
+  }
+}
+
+async function cancelTransfer(id) {
+  try {
+    const res = await api(`/api/transfer/cancel/${id}`, { method: 'POST' });
+    showToast('Transfer cancelled', 'info');
+    if (res && res.id) updateTransfer(res);
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getFileIcon(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const icons = {
+    jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️', heic: '🖼️', heif: '🖼️', svg: '🖼️', raw: '🖼️', dng: '🖼️',
+    mp4: '🎬', mkv: '🎬', avi: '🎬', mov: '🎬', '3gp': '🎬', webm: '🎬',
+    mp3: '🎵', flac: '🎵', aac: '🎵', ogg: '🎵', wav: '🎵', m4a: '🎵',
+    pdf: '📕', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗', ppt: '📙', pptx: '📙',
+    txt: '📝', csv: '📝', json: '📝', xml: '📝', log: '📝',
+    zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦',
+    apk: '📲',
+  };
+  return icons[ext] || '📄';
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toasts');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 300ms';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+connectWS();
+refreshDevices();
+browseLocal('');
+loadTransfers();
+</script>
+</body>
+</html>
