@@ -2187,8 +2187,21 @@ async function browseLocal(newPath) {
     updateSelectionInfo();
     renderDestinationPreview();
 
-    // Check if phonebackup_status.json exists in this folder
-    const statusEntry = entries.find(e => !e.isDir && (e.name === 'phonebackup_status.json' || e.name === 'backup_status.json'));
+    // Check if phonebackup_status.json exists in this folder or logs/ subfolder
+    let statusEntry = entries.find(e => !e.isDir && (e.name === 'phonebackup_status.json' || e.name === 'backup_status.json'));
+    const hasLogsDir = entries.some(e => e.isDir && e.name.toLowerCase() === 'logs');
+    if (!statusEntry && hasLogsDir && localPath) {
+      try {
+        const sep = localPath.includes('/') ? '/' : '\\';
+        const logsPath = localPath.endsWith(sep) ? `${localPath}logs` : `${localPath}${sep}logs`;
+        const logsEntries = await api(`/api/local/browse?path=${encodeURIComponent(logsPath)}`);
+        const foundInLogs = logsEntries.find(e => !e.isDir && (e.name === 'phonebackup_status.json' || e.name === 'backup_status.json'));
+        if (foundInLogs) {
+          statusEntry = foundInLogs;
+        }
+      } catch {}
+    }
+
     if (statusEntry) {
       showDetectedBanner({ path: statusEntry.path });
     } else {
@@ -2297,14 +2310,14 @@ async function setDirectDestination(customPath) {
       return;
     }
 
-    localPath = res.path;
-    input.value = res.path;
-    await browseLocal(res.path);
+    localPath = res.path || res.local_dir || res.localDir;
+    input.value = localPath;
+    await browseLocal(localPath);
 
     if (res.created) {
-      showToast(`Created folder and set destination: ${res.path}`, 'success');
+      showToast(`Created folder and set destination: ${localPath}`, 'success');
     } else {
-      showToast(`Destination set: ${res.path}`, 'success');
+      showToast(`Destination set: ${localPath}`, 'success');
     }
 
     if (res.hasStatus && res.statusInfo) {
@@ -2337,8 +2350,9 @@ async function loadAndApplyStatusData(data) {
   if (!data || typeof data !== 'object') {
     return showToast('Invalid status JSON file', 'error');
   }
-  const sources = data.sources || data.remoteDirs || (data.remoteDir ? [data.remoteDir] : []);
-  if (sources.length === 0 || !data.localDir) {
+  const sources = data.sources || data.remoteDirs || data.remote_dirs || (data.remoteDir ? [data.remoteDir] : (data.remote_dir ? [data.remote_dir] : []));
+  const localDir = data.localDir || data.local_dir;
+  if (sources.length === 0 || !localDir) {
     return showToast('Status file is missing sources or destination path', 'error');
   }
 
@@ -2354,11 +2368,11 @@ async function loadAndApplyStatusData(data) {
 }
 
 async function applyImportedTransferData(res) {
-  const sources = res.sources || [];
-  localPath = res.localDir;
+  const sources = res.sources || (res.transfer && res.transfer.sources) || [];
+  localPath = res.localDir || res.local_dir || (res.transfer && (res.transfer.localDir || res.transfer.local_dir)) || localPath;
 
   const destInput = document.getElementById('destPathInput');
-  if (destInput) destInput.value = localPath;
+  if (destInput && localPath) destInput.value = localPath;
 
   // Fill source paths
   sourcePaths.clear();
@@ -2368,19 +2382,23 @@ async function applyImportedTransferData(res) {
   renderSourcePaths();
 
   // Fill filters if present
-  if (res.filters && res.filters.include) {
-    const fVal = Array.isArray(res.filters.include) ? res.filters.include.join(', ') : res.filters.include;
+  const filters = res.filters || (res.transfer && res.transfer.filters);
+  if (filters && filters.include) {
+    const fVal = Array.isArray(filters.include) ? filters.include.join(', ') : filters.include;
     document.getElementById('filterInput').value = fVal;
     filterText = fVal;
   }
 
   // Auto-select device if connected
-  if (res.deviceSerial && devices.some(d => d.serial === res.deviceSerial)) {
-    selectDevice(res.deviceSerial);
+  const targetSerial = res.active_serial || res.deviceSerial || res.device_serial || (res.transfer && (res.transfer.active_serial || res.transfer.deviceSerial || res.transfer.device_serial));
+  if (targetSerial && devices.some(d => d.serial === targetSerial)) {
+    selectDevice(targetSerial);
   }
 
   // Browse destination folder
-  await browseLocal(localPath);
+  if (localPath) {
+    await browseLocal(localPath);
+  }
   updateSelectionInfo();
   renderDestinationPreview();
   await loadTransfers();

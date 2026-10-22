@@ -331,31 +331,56 @@ func SetupHTTPServer(publicDir string) http.Handler {
 				_ = os.MkdirAll(resolved, 0755)
 				created = true
 			}
-			logsStatus := filepath.Join(resolved, "logs", "phonebackup_status.json")
-			if _, err := os.Stat(logsStatus); err == nil {
-				statusFilePath = logsStatus
-			} else {
-				statusFilePath = filepath.Join(resolved, "phonebackup_status.json")
+			// Check if resolved itself is "logs" folder
+			if strings.EqualFold(filepath.Base(resolved), "logs") {
+				candidate := filepath.Join(resolved, "phonebackup_status.json")
+				if _, err := os.Stat(candidate); err == nil {
+					statusFilePath = candidate
+					resolved = filepath.Dir(resolved)
+				}
+			}
+			if statusFilePath == "" {
+				logsStatus := filepath.Join(resolved, "logs", "phonebackup_status.json")
+				if _, err := os.Stat(logsStatus); err == nil {
+					statusFilePath = logsStatus
+				} else {
+					rootStatus := filepath.Join(resolved, "phonebackup_status.json")
+					if _, err := os.Stat(rootStatus); err == nil {
+						statusFilePath = rootStatus
+					}
+				}
 			}
 		}
 
 		var statusInfo map[string]interface{}
 		var parsedStatus *BackupStatus
-		if raw, err := os.ReadFile(statusFilePath); err == nil {
-			var parsed BackupStatus
-			if json.Unmarshal(raw, &parsed) == nil {
-				parsedStatus = &parsed
+		if statusFilePath != "" {
+			if st, err := LoadStatusFile(statusFilePath); err == nil {
+				parsedStatus = st
 				isStatusFile = true
+				if st.Status == StatusRunning {
+					st.Status = StatusPaused
+				}
+				RegisterTransfer(st)
+				if st.LocalDir != "" {
+					resolved = st.LocalDir
+				}
 				statusInfo = map[string]interface{}{
-					"id":         parsed.ID,
-					"sources":    parsed.Sources,
-					"localDir":   parsed.LocalDir,
-					"status":     parsed.Status,
-					"doneFiles":  parsed.DoneFiles,
-					"totalFiles": parsed.TotalFiles,
-					"totalBytes": parsed.TotalBytes,
-					"doneBytes":  parsed.DoneBytes,
-					"updatedAt":  parsed.UpdatedAt,
+					"id":          st.ID,
+					"sources":     st.Sources,
+					"localDir":    st.LocalDir,
+					"local_dir":   st.LocalDir,
+					"status":      st.Status,
+					"doneFiles":   st.DoneFiles,
+					"done_files":  st.DoneFiles,
+					"totalFiles":  st.TotalFiles,
+					"total_files": st.TotalFiles,
+					"totalBytes":  st.TotalBytes,
+					"total_bytes": st.TotalBytes,
+					"doneBytes":   st.DoneBytes,
+					"done_bytes":  st.DoneBytes,
+					"updatedAt":   st.UpdatedAt,
+					"updated_at":  st.UpdatedAt,
 				}
 			}
 		}
@@ -363,6 +388,8 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		resMap := map[string]interface{}{
 			"success":      true,
 			"path":         resolved,
+			"local_dir":    resolved,
+			"localDir":     resolved,
 			"created":      created,
 			"hasStatus":    statusInfo != nil,
 			"statusInfo":   statusInfo,
@@ -372,10 +399,15 @@ func SetupHTTPServer(publicDir string) http.Handler {
 			resMap["id"] = parsedStatus.ID
 			resMap["sources"] = parsedStatus.Sources
 			resMap["local_dir"] = parsedStatus.LocalDir
+			resMap["localDir"] = parsedStatus.LocalDir
 			resMap["filters"] = parsedStatus.Filters
 			resMap["active_serial"] = parsedStatus.ActiveSerial
+			resMap["deviceSerial"] = parsedStatus.ActiveSerial
 			resMap["known_serials"] = parsedStatus.DeviceSerials
+			resMap["deviceSerials"] = parsedStatus.DeviceSerials
 			resMap["device_model"] = parsedStatus.DeviceModel
+			resMap["deviceModel"] = parsedStatus.DeviceModel
+			resMap["transfer"] = parsedStatus.ToSummary()
 		}
 
 		_ = json.NewEncoder(w).Encode(resMap)
@@ -387,9 +419,9 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		transfersMu.RLock()
 		defer transfersMu.RUnlock()
 
-		var list []*BackupStatus
+		var list []map[string]interface{}
 		for _, t := range activeTransfers {
-			list = append(list, t)
+			list = append(list, t.ToSummary())
 		}
 		_ = json.NewEncoder(w).Encode(list)
 	})
@@ -412,6 +444,23 @@ func SetupHTTPServer(publicDir string) http.Handler {
 
 		if body.StatusData != nil && body.StatusData.LocalDir != "" {
 			status = body.StatusData
+			// Hydrate catalog if not present in uploaded status
+			if len(status.Files) == 0 {
+				candidates := []string{
+					filepath.Join(status.LocalDir, "logs", "files_catalog.json"),
+					filepath.Join(status.LocalDir, "files_catalog.json"),
+				}
+				for _, cp := range candidates {
+					if rawCatalog, err := os.ReadFile(cp); err == nil {
+						var files []*FileItem
+						if err := json.Unmarshal(rawCatalog, &files); err == nil && len(files) > 0 {
+							status.Files = files
+							status.CatalogFile = cp
+							break
+						}
+					}
+				}
+			}
 		} else if body.FilePath != "" {
 			status, err = LoadStatusFile(body.FilePath)
 			if err != nil {
@@ -432,13 +481,17 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":       true,
 			"id":            status.ID,
-			"transfer":      status,
+			"transfer":      status.ToSummary(),
 			"sources":       status.Sources,
 			"local_dir":     status.LocalDir,
+			"localDir":      status.LocalDir,
 			"filters":       status.Filters,
 			"active_serial": status.ActiveSerial,
+			"deviceSerial":  status.ActiveSerial,
 			"known_serials": status.DeviceSerials,
+			"deviceSerials": status.DeviceSerials,
 			"device_model":  status.DeviceModel,
+			"deviceModel":   status.DeviceModel,
 		})
 	})
 

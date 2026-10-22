@@ -355,6 +355,7 @@ func LoadStatusFile(target string) (*BackupStatus, error) {
 		candidates := []string{
 			filepath.Join(status.LocalDir, "logs", "files_catalog.json"),
 			filepath.Join(filepath.Dir(statusPath), "logs", "files_catalog.json"),
+			filepath.Join(filepath.Dir(statusPath), "files_catalog.json"),
 			filepath.Join(status.LocalDir, "files_catalog.json"),
 		}
 		for _, cp := range candidates {
@@ -380,6 +381,8 @@ func LoadStatusFile(target string) (*BackupStatus, error) {
 		failedCandidates := []string{
 			filepath.Join(status.LocalDir, "logs", "failed_files.json"),
 			filepath.Join(filepath.Dir(statusPath), "logs", "failed_files.json"),
+			filepath.Join(filepath.Dir(statusPath), "failed_files.json"),
+			filepath.Join(status.LocalDir, "failed_files.json"),
 		}
 		for _, fp := range failedCandidates {
 			if rawFailed, err := os.ReadFile(fp); err == nil {
