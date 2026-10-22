@@ -40,7 +40,8 @@ func getADBPath() string {
 		return p
 	}
 	candidates := []string{
-		`C:\Raghav\Work\Software\SDK\platform-tools\adb.exe`,
+		filepath.Join(os.Getenv("ANDROID_HOME"), `platform-tools\adb.exe`),
+		filepath.Join(os.Getenv("ANDROID_SDK_ROOT"), `platform-tools\adb.exe`),
 		filepath.Join(os.Getenv("LOCALAPPDATA"), `Android\Sdk\platform-tools\adb.exe`),
 		filepath.Join(os.Getenv("PROGRAMFILES"), `Android\platform-tools\adb.exe`),
 	}
