@@ -8,6 +8,14 @@ A robust, cross-platform Android backup tool and web dashboard powered by ADB. F
 
 Supports **Windows**, **macOS**, and **Linux**.
 
+## ⬇️ Download
+
+Get the archive for your system from the [latest release](https://github.com/raghavsatyadev/PhoneBackup/releases/latest)
+(`windows-amd64.zip`, `linux-amd64` / `linux-arm64`, `darwin-arm64` for Apple silicon Macs,
+`darwin-amd64` for Intel Macs), unpack it and run `phonebackup` from that folder. Keep the `public`
+folder next to the program. You still need ADB (see below). On macOS, if Gatekeeper blocks it, run
+`xattr -d com.apple.quarantine phonebackup` once.
+
 ---
 
 ## ⚡ Prerequisites

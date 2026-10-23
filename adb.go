@@ -11,9 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -31,35 +31,39 @@ type RemoteHash struct {
 	Algorithm string `json:"algorithm"`
 }
 
-// getADBPath resolves the absolute path to adb.exe to avoid dot-lookup conflicts with adb.js in the directory.
+// getADBPath resolves the absolute path to adb to avoid dot-lookup conflicts with adb.js in the directory.
 func getADBPath() string {
 	if p := os.Getenv("ADB_PATH"); p != "" {
 		return p
 	}
-	if p, err := exec.LookPath("adb.exe"); err == nil && filepath.IsAbs(p) {
+	name := "adb"
+	if runtime.GOOS == "windows" {
+		name = "adb.exe"
+	}
+	if p, err := exec.LookPath(name); err == nil && filepath.IsAbs(p) {
 		return p
 	}
+	home, _ := os.UserHomeDir()
 	candidates := []string{
-		filepath.Join(os.Getenv("ANDROID_HOME"), `platform-tools\adb.exe`),
-		filepath.Join(os.Getenv("ANDROID_SDK_ROOT"), `platform-tools\adb.exe`),
-		filepath.Join(os.Getenv("LOCALAPPDATA"), `Android\Sdk\platform-tools\adb.exe`),
-		filepath.Join(os.Getenv("PROGRAMFILES"), `Android\platform-tools\adb.exe`),
+		filepath.Join(os.Getenv("ANDROID_HOME"), "platform-tools", name),
+		filepath.Join(os.Getenv("ANDROID_SDK_ROOT"), "platform-tools", name),
+		filepath.Join(os.Getenv("LOCALAPPDATA"), "Android", "Sdk", "platform-tools", name),
+		filepath.Join(os.Getenv("PROGRAMFILES"), "Android", "platform-tools", name),
+		filepath.Join(home, "Library", "Android", "sdk", "platform-tools", name),
+		filepath.Join(home, "Android", "Sdk", "platform-tools", name),
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
 			return c
 		}
 	}
-	return "adb.exe"
+	return name
 }
 
-// getADBCommand creates an exec.Cmd with Windows HideWindow flags to prevent ANY console window flashing.
+// getADBCommand creates an exec.Cmd that never flashes a console window on Windows.
 func getADBCommand(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, getADBPath(), args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-	}
+	hideConsoleWindow(cmd)
 	return cmd
 }
 
