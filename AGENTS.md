@@ -84,7 +84,7 @@ Provides the web dashboard API backend and serves static assets.
 Entry point for command-line execution and service bootstrapping.
 
 - **Supported CLI Commands:**
-  - `phonebackup.exe server [-port 9876] [-upload-port 9877] [-upload-dir <dir>]`: Starts the Web UI server (default port `9876`). Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default `~/Pictures/PhoneBackup`).
+  - `phonebackup.exe server [-port 9876] [-upload-port 9877] [-upload-dir <dir>] [-vision-model <name>] [-vision-url <url>]`: Starts the Web UI server (default port `9876`). Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default `~/Pictures/PhoneBackup`).
   - `phonebackup.exe resume <path-or-file>`: Directly resumes a backup given a folder or status JSON file.
   - `phonebackup.exe backup -dest <dir> -sources <dirs> [-device <serial>] [-include <patterns>]`: Starts a CLI backup while simultaneously broadcasting to the web dashboard.
   - `phonebackup.exe devices`: Lists connected Android devices in the console.
@@ -117,6 +117,7 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
   - `POST /api/upload`: Streaming multipart. Text fields `album`, `tags` (comma-separated), `takenAt` (RFC 3339), `fileName` must come before the `file` part.
 - **Storage:** `<upload-dir>/<album>/<file>` (album defaults to `Unsorted`). Names are sanitized (`sanitizeName`: no traversal, no Windows-reserved names). Never overwrites: a same-name same-size file counts as a retry and is skipped; otherwise ` (n)` is added. File mtime is set to `takenAt`; EXIF is never rewritten. Metadata (album, tags, dates) goes in a sidecar `<album>/.phonebackup/<file>.json` (`PhotoMeta`).
 - **Tests:** `upload_test.go`.
+- **Vision tagging (`vision.go`, `vision_ollama.go`):** on when `server -vision-model <name>` is set (`-vision-url`, default Ollama `http://127.0.0.1:11434`). `VisionWorker` takes jobs from a bounded channel (uploads never wait; one photo at a time) and on start backfills every sidecar without a result. `OllamaVision.Analyze` shrinks JPEG/PNG/GIF to 1024px (stdlib only), sends it to `/api/chat` with a JSON schema, and writes `VisionMeta` (caption, tags, text, model, analyzedAt, error) to `<album>/.phonebackup/<file>.vision.json`, a separate file so upload retries that rewrite the main sidecar can't erase it. Unsupported files (video, HEIC) get an error result; server/model failures write nothing so the next start retries. Tests: `vision_test.go` (fake Ollama).
 
 ---
 

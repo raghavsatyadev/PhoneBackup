@@ -1,0 +1,151 @@
+package main
+
+// Vision tagging for uploaded photos.
+//
+// When the server starts with -vision-model, every uploaded photo is sent to a local
+// vision LLM (Ollama by default) in the background. The result goes to its own file,
+// <album>/.phonebackup/<file>.vision.json, so upload retries that rewrite the main
+// sidecar never erase it. The user's own tags stay in the main sidecar; model tags
+// live only here.
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+)
+
+const visionSuffix = ".vision.json"
+
+// VisionMeta is what the model said about one photo.
+type VisionMeta struct {
+	Model      string    `json:"model"`
+	AnalyzedAt time.Time `json:"analyzedAt"`
+	Caption    string    `json:"caption,omitempty"`
+	Tags       []string  `json:"tags,omitempty"`
+	Text       string    `json:"text,omitempty"` // readable text in the image
+	Error      string    `json:"error,omitempty"`
+}
+
+// errUnsupported marks photos the model can never read (videos, HEIC...).
+var errUnsupported = errors.New("unsupported format")
+
+type visionJob struct{ albumDir, fileName string }
+
+// VisionWorker analyses photos one at a time (the GPU is the bottleneck).
+type VisionWorker struct {
+	Root   string
+	Client *OllamaVision
+	queue  chan visionJob
+}
+
+// NewVisionWorker returns nil when model is empty, which turns the feature off.
+func NewVisionWorker(root, url, model string) *VisionWorker {
+	if model == "" {
+		return nil
+	}
+	return &VisionWorker{Root: root, Client: NewOllamaVision(url, model), queue: make(chan visionJob, 256)}
+}
+
+// Start runs the worker and queues photos uploaded earlier that have no result yet.
+func (v *VisionWorker) Start() {
+	go v.run()
+	go v.backfill()
+}
+
+// Enqueue never blocks an upload; a dropped job is picked up by the next backfill.
+func (v *VisionWorker) Enqueue(albumDir, fileName string) {
+	if v == nil {
+		return
+	}
+	select {
+	case v.queue <- visionJob{albumDir, fileName}:
+	default:
+	}
+}
+
+func (v *VisionWorker) run() {
+	for job := range v.queue {
+		v.process(job)
+	}
+}
+
+func (v *VisionWorker) process(job visionJob) {
+	out := visionPath(job.albumDir, job.fileName)
+	if _, err := os.Stat(out); err == nil {
+		return // already analysed
+	}
+	meta, err := v.Client.Analyze(filepath.Join(job.albumDir, job.fileName))
+	if err != nil && !errors.Is(err, errUnsupported) && !errors.Is(err, errBadImage) {
+		// Model or server problem: leave no file so a later start retries.
+		fmt.Printf("⚠️  Vision: %s: %v\n", job.fileName, err)
+		return
+	}
+	if err != nil {
+		meta = VisionMeta{Model: v.Client.Model, Error: err.Error()}
+	}
+	meta.AnalyzedAt = time.Now()
+	if werr := writeJSONAtomic(out, meta); werr != nil {
+		fmt.Printf("⚠️  Vision: cannot save result for %s: %v\n", job.fileName, werr)
+	}
+}
+
+// backfill queues every uploaded photo (one with a sidecar) that has no vision result.
+func (v *VisionWorker) backfill() {
+	albums, err := os.ReadDir(v.Root)
+	if err != nil {
+		return
+	}
+	for _, a := range albums {
+		if !a.IsDir() {
+			continue
+		}
+		albumDir := filepath.Join(v.Root, a.Name())
+		entries, _ := os.ReadDir(filepath.Join(albumDir, sidecarDirName))
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, visionSuffix) {
+				continue
+			}
+			photo := strings.TrimSuffix(name, ".json")
+			if _, err := os.Stat(visionPath(albumDir, photo)); err == nil {
+				continue
+			}
+			if _, err := os.Stat(filepath.Join(albumDir, photo)); err != nil {
+				continue
+			}
+			v.queue <- visionJob{albumDir, photo}
+		}
+	}
+}
+
+func visionPath(albumDir, fileName string) string {
+	return filepath.Join(albumDir, sidecarDirName, fileName+visionSuffix)
+}
+
+// writeJSONAtomic writes via a temp file and rename so readers never see half a file.
+func writeJSONAtomic(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
+}

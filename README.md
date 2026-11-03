@@ -77,6 +77,15 @@ The `cmp/` folder holds **PhoneBackup Share**, an Android app that sends photos 
 
 Photos are saved unchanged in `~/Pictures/PhoneBackup/<album>/` (change with `-upload-dir`). Each file's modified time is set to the photo's date, and tags and dates are stored in `<album>/.phonebackup/<file>.json`.
 
+**AI captions and tags (optional).** Start the server with a local [Ollama](https://ollama.com) vision model and every uploaded photo gets a caption, tags and any readable text, saved to `<album>/.phonebackup/<file>.vision.json`. Your own tags are never changed. It runs in the background after each upload, and on start it also tags earlier uploads that have none yet. Videos and HEIC are skipped.
+
+```bash
+ollama pull qwen3-vl:8b
+phonebackup server -vision-model qwen3-vl:8b
+```
+
+Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
+
 ---
 
 ## ✨ Features
