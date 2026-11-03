@@ -33,6 +33,7 @@ val ImageHttp = named("imageHttp")
 /** App dependencies, started once by the platform app. Singles are created on first use. */
 fun appModule(settings: SettingsStore, discovery: ServerDiscovery = NoDiscovery, deviceName: String = "") =
   module {
+    includes(navigationModule)
     single { settings }
     single { DeviceInfo(deviceName, canSearch = discovery !== NoDiscovery) }
     single { createHttpClient() }
