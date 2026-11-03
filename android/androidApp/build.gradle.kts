@@ -19,6 +19,26 @@ android {
     versionName = libs.versions.versionName.get()
     resValue("string", "app_name", libs.versions.appName.get())
   }
+  // Release key lives outside the repo; its path and passwords come from ~/.gradle/gradle.properties.
+  val storeFilePath = providers.gradleProperty("PHONEBACKUP_STORE_FILE").orNull
+  if (storeFilePath != null) {
+    signingConfigs {
+      create("release") {
+        storeFile = file(storeFilePath)
+        storePassword = providers.gradleProperty("PHONEBACKUP_STORE_PASSWORD").get()
+        keyAlias = providers.gradleProperty("PHONEBACKUP_KEY_ALIAS").get()
+        keyPassword = providers.gradleProperty("PHONEBACKUP_KEY_PASSWORD").get()
+      }
+    }
+    buildTypes { getByName("release") { signingConfig = signingConfigs.getByName("release") } }
+  }
+  buildTypes {
+    getByName("release") {
+      isMinifyEnabled = true
+      isShrinkResources = true
+      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+    }
+  }
   buildFeatures { resValues = true }
   packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST}" } }
 }
