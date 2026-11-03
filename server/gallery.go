@@ -25,8 +25,8 @@ type GalleryPhoto struct {
 	UploadedAt time.Time `json:"uploadedAt"`
 	Size       int64     `json:"size"`
 	IsVideo    bool      `json:"isVideo"`
-	Tags       []string  `json:"tags"`     // the user's own tags
-	AITags     []string  `json:"aiTags"`   // from the vision model
+	Tags       []string  `json:"tags"`   // the user's own tags
+	AITags     []string  `json:"aiTags"` // from the vision model
 	Caption    string    `json:"caption"`
 	Text       string    `json:"text"`
 	Category   string    `json:"category"`
