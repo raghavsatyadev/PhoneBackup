@@ -54,6 +54,8 @@ COMMANDS:
                                    Example: phonebackup.exe resume D:\Backups\Phone
                                    Example: phonebackup.exe resume D:\Backups\Phone\phonebackup_status.json
   backup [flags]                   Start a new backup (CLI + live Web UI)
+  organize [-dir <folder>]         Sort tagged uploads into _Organized\<Category>\<Year Event>
+           [-apply]                (dry run unless -apply; hard-links, never moves originals)
   devices                          List connected Android devices
   help                             Show this help message
 
@@ -79,6 +81,8 @@ func main() {
 		handleServer(os.Args[2:])
 	case "devices":
 		handleDevices()
+	case "organize":
+		handleOrganize(os.Args[2:])
 	case "resume":
 		if len(os.Args) < 3 {
 			fmt.Println("Error: please specify the destination directory or status file path.")

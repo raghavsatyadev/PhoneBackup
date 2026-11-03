@@ -26,8 +26,10 @@ type VisionMeta struct {
 	AnalyzedAt time.Time `json:"analyzedAt"`
 	Caption    string    `json:"caption,omitempty"`
 	Tags       []string  `json:"tags,omitempty"`
-	Text       string    `json:"text,omitempty"`   // readable text in the image
-	Frames     int       `json:"frames,omitempty"` // video: how many frames the model saw
+	Text       string    `json:"text,omitempty"`     // readable text in the image
+	Category   string    `json:"category,omitempty"` // one of the names in categories.json (or the defaults)
+	Event      string    `json:"event,omitempty"`    // e.g. "Diwali", "Goa trip", "First steps"
+	Frames     int       `json:"frames,omitempty"`   // video: how many frames the model saw
 	Error      string    `json:"error,omitempty"`
 }
 
@@ -76,10 +78,11 @@ func (v *VisionWorker) run() {
 
 func (v *VisionWorker) process(job visionJob) {
 	out := visionPath(job.albumDir, job.fileName)
-	if _, err := os.Stat(out); err == nil {
+	if !needsVision(out) {
 		return // already analysed
 	}
-	meta, err := v.Client.Analyze(filepath.Join(job.albumDir, job.fileName))
+	hint := readPhotoHint(v.Root, job.albumDir, job.fileName)
+	meta, err := v.Client.Analyze(filepath.Join(job.albumDir, job.fileName), hint)
 	if err != nil && !errors.Is(err, errUnsupported) && !errors.Is(err, errBadImage) {
 		// Model or server problem: leave no file so a later start retries.
 		fmt.Printf("⚠️  Vision: %s: %v\n", job.fileName, err)
@@ -112,7 +115,7 @@ func (v *VisionWorker) backfill() {
 				continue
 			}
 			photo := strings.TrimSuffix(name, ".json")
-			if _, err := os.Stat(visionPath(albumDir, photo)); err == nil {
+			if !needsVision(visionPath(albumDir, photo)) {
 				continue
 			}
 			if _, err := os.Stat(filepath.Join(albumDir, photo)); err != nil {
@@ -121,6 +124,20 @@ func (v *VisionWorker) backfill() {
 			v.queue <- visionJob{albumDir, photo}
 		}
 	}
+}
+
+// needsVision is true when there is no result yet, or an older one made before categories.
+// Permanent errors (unsupported files) are never retried.
+func needsVision(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return true
+	}
+	var m VisionMeta
+	if json.Unmarshal(b, &m) != nil {
+		return true
+	}
+	return m.Error == "" && m.Category == ""
 }
 
 func visionPath(albumDir, fileName string) string {

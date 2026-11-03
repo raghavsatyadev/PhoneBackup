@@ -87,6 +87,7 @@ Entry point for command-line execution and service bootstrapping.
   - `phonebackup.exe server [-port 9876] [-upload-port 9877] [-upload-dir <dir>] [-vision-model <name>] [-vision-url <url>]`: Starts the Web UI server (default port `9876`). Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default `~/Pictures/PhoneBackup`).
   - `phonebackup.exe resume <path-or-file>`: Directly resumes a backup given a folder or status JSON file.
   - `phonebackup.exe backup -dest <dir> -sources <dirs> [-device <serial>] [-include <patterns>]`: Starts a CLI backup while simultaneously broadcasting to the web dashboard.
+  - `phonebackup.exe organize [-dir <upload-dir>] [-apply]`: Sorts vision-tagged uploads into `_Organized/<Category>/<Year Event>` (dry run unless `-apply`).
   - `phonebackup.exe devices`: Lists connected Android devices in the console.
   - `phonebackup.exe help`: Prints usage instructions.
 
@@ -118,6 +119,8 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
 - **Storage:** `<upload-dir>/<album>/<file>` (album defaults to `Unsorted`). Names are sanitized (`sanitizeName`: no traversal, no Windows-reserved names). Never overwrites: a same-name same-size file counts as a retry and is skipped; otherwise ` (n)` is added. File mtime is set to `takenAt`; EXIF is never rewritten. Metadata (album, tags, dates) goes in a sidecar `<album>/.phonebackup/<file>.json` (`PhotoMeta`).
 - **Tests:** `upload_test.go`.
 - **Vision tagging (`vision.go`, `vision_ollama.go`):** on when `server -vision-model <name>` is set (`-vision-url`, default Ollama `http://127.0.0.1:11434`). `VisionWorker` takes jobs from a bounded channel (uploads never wait; one photo at a time) and on start backfills every sidecar without a result. `OllamaVision.Analyze` shrinks JPEG/PNG/GIF to 1024px (stdlib only), sends it to `/api/chat` with a JSON schema, and writes `VisionMeta` (caption, tags, text, model, analyzedAt, error) to `<album>/.phonebackup/<file>.vision.json`, a separate file so upload retries that rewrite the main sidecar can't erase it. HEIC/AVIF and video go through ffmpeg/ffprobe on PATH (`vision_media.go`): HEIC is decoded to JPEG (tile grids included), video sends 1/3/5 frames (under 2 s / up to 60 s / longer) at 768px in one request. Requests set `num_ctx` 8192 so models don't spill to CPU. Other files get an error result; a missing ffmpeg, like server/model failures write nothing so the next start retries. Tests: `vision_test.go` (fake Ollama).
+- **Categories (`categories.go`):** built-in Gujarati/Indian categories, or `<upload-dir>/categories.json` (read per photo). The prompt lists them plus the sidecar `takenAt` date and album as clues; the schema limits `category` to the names (enum) and adds `event`. `matchCategory` falls back to the last entry. `needsVision` redoes results that have no category and no error, so old results get categories on the next start.
+- **Organize (`organize.go`):** `phonebackup organize [-dir] [-apply]`. Dry run by default; `-apply` hard-links (copy fallback) to `<upload-dir>/_Organized/<Category>/<YYYY>[ <Event>]/<file>`. Never moves or deletes; existing targets are skipped. Tests: `organize_test.go`.
 
 ---
 

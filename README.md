@@ -80,11 +80,28 @@ Photos are saved unchanged in `~/Pictures/PhoneBackup/<album>/` (change with `-u
 **AI captions and tags (optional).** Start the server with a local [Ollama](https://ollama.com) vision model and every uploaded photo gets a caption, tags and any readable text, saved to `<album>/.phonebackup/<file>.vision.json`. Your own tags are never changed. It runs in the background after each upload, and on start it also tags earlier uploads that have none yet. HEIC photos and videos need [ffmpeg](https://ffmpeg.org) on PATH: HEIC is converted, and a video is described from 3 frames (at 20%, 50% and 80% of its length; 1 frame for clips under 2 s, 5 for clips over a minute).
 
 ```bash
-ollama pull qwen3.6:35b-a3b
-phonebackup server -vision-model qwen3.6:35b-a3b
+ollama pull qwen3-vl:30b-a3b-instruct
+phonebackup server -vision-model qwen3-vl:30b-a3b-instruct
 ```
 
-`qwen3.6:35b-a3b` gave the best results on a 16 GB GPU (about 3 s per photo once loaded). On smaller GPUs use `qwen3-vl:8b`.
+`qwen3-vl:30b-a3b-instruct` is the recommended model for a 16 GB GPU (about 4-5 s per photo once loaded; part of it runs on the CPU). `qwen3.6:35b-a3b` works too. On smaller GPUs use `qwen3-vl:8b`.
+
+**Festivals, trips and baby milestones.** The model also puts each photo in one category (Festival, Baby, Trip, Wedding & Function, Celebration, Documents, Everyday) and names the occasion ("Diwali", "Navratri", "Uttarayan", "First steps", "Goa trip"). The photo date and album name are given to it as clues. To change the categories, put a `categories.json` in the upload folder:
+
+```json
+[{"name": "Festival", "hint": "Diwali, Navratri, Uttarayan, Holi, ..."}, {"name": "Everyday", "hint": "anything else"}]
+```
+
+The last entry is the fallback. Photos tagged before categories existed are tagged again on the next start.
+
+To sort the tagged photos into folders, run:
+
+```bash
+phonebackup organize
+phonebackup organize -apply
+```
+
+The first command only prints the plan. `-apply` builds `_Organized\<Category>\<Year> <Event>\` inside the upload folder with hard links (no extra disk space; a copy when linking isn't possible). Originals are never moved or deleted, and running it again only adds new photos. Use `-dir` for a different upload folder.
 
 Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
 

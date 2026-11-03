@@ -65,22 +65,48 @@ type ollamaMessage struct {
 	Images  []string `json:"images,omitempty"`
 }
 
-var visionSchema = json.RawMessage(`{"type":"object","properties":{` +
-	`"caption":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"text":{"type":"string"}},` +
-	`"required":["caption","tags","text"]}`)
+// visionSchema is the JSON shape Ollama forces the reply into; category is limited to the known names.
+func visionSchema(cats []Category) json.RawMessage {
+	names := make([]string, len(cats))
+	for i, c := range cats {
+		names[i] = c.Name
+	}
+	str := map[string]any{"type": "string"}
+	b, _ := json.Marshal(map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"caption":  str,
+			"tags":     map[string]any{"type": "array", "items": str},
+			"text":     str,
+			"category": map[string]any{"type": "string", "enum": names},
+			"event":    str,
+		},
+		"required": []string{"caption", "tags", "text", "category", "event"},
+	})
+	return b
+}
 
-// Analyze prepares the photo (or video frames) and asks the model for caption, tags and text.
-func (o *OllamaVision) Analyze(path string) (VisionMeta, error) {
-	images, prompt, err := prepareVisionInput(path)
+// Analyze prepares the photo (or video frames) and asks the model for caption, tags, text,
+// category and event. The hint adds the category list, date and album as clues.
+func (o *OllamaVision) Analyze(path string, hint visionHint) (VisionMeta, error) {
+	if len(hint.Categories) == 0 {
+		hint.Categories = defaultCategories
+	}
+	images, isVideo, err := prepareVisionInput(path)
 	if err != nil {
 		return VisionMeta{}, err
 	}
+	prompt := visionPrompt
+	if isVideo {
+		prompt = visionVideoPrompt
+	}
+	prompt += "\n" + hint.categoryPrompt()
 	encoded := make([]string, len(images))
 	for i, img := range images {
 		encoded[i] = base64.StdEncoding.EncodeToString(img)
 	}
 	body, _ := json.Marshal(ollamaChatRequest{
-		Model: o.Model, KeepAlive: "5m", Format: visionSchema,
+		Model: o.Model, KeepAlive: "5m", Format: visionSchema(hint.Categories),
 		Options:  map[string]any{"num_ctx": visionNumCtx},
 		Messages: []ollamaMessage{{Role: "user", Content: prompt, Images: encoded}},
 	})
@@ -102,29 +128,32 @@ func (o *OllamaVision) Analyze(path string) (VisionMeta, error) {
 		return VisionMeta{}, fmt.Errorf("bad ollama reply: %w", err)
 	}
 	m, err := parseVisionReply(o.Model, chat.Message.Content)
-	if err == nil && prompt == visionVideoPrompt {
-		m.Frames = len(images)
+	if err == nil {
+		m.Category = matchCategory(hint.Categories, m.Category)
+		if isVideo {
+			m.Frames = len(images)
+		}
 	}
 	return m, err
 }
 
-// prepareVisionInput returns the images to send and the prompt to use.
-func prepareVisionInput(path string) ([][]byte, string, error) {
+// prepareVisionInput returns the images to send and whether they are video frames.
+func prepareVisionInput(path string) ([][]byte, bool, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch {
 	case videoExts[ext]:
 		frames, err := videoFrames(path)
-		return frames, visionVideoPrompt, err
+		return frames, true, err
 	case heicExts[ext]:
 		data, err := heicToJPEG(path)
 		if err != nil {
-			return nil, "", err
+			return nil, false, err
 		}
 		img, err := shrinkJPEGBytes(data, true)
-		return [][]byte{img}, visionPrompt, err
+		return [][]byte{img}, false, err
 	}
 	img, err := prepareVisionImage(path)
-	return [][]byte{img}, visionPrompt, err
+	return [][]byte{img}, false, err
 }
 
 // parseVisionReply accepts the model's JSON, even when wrapped in text or a code fence.
@@ -134,14 +163,17 @@ func parseVisionReply(model, content string) (VisionMeta, error) {
 		return VisionMeta{}, fmt.Errorf("model reply has no JSON: %.200q", content)
 	}
 	var out struct {
-		Caption string   `json:"caption"`
-		Tags    []string `json:"tags"`
-		Text    string   `json:"text"`
+		Caption  string   `json:"caption"`
+		Tags     []string `json:"tags"`
+		Text     string   `json:"text"`
+		Category string   `json:"category"`
+		Event    string   `json:"event"`
 	}
 	if err := json.Unmarshal([]byte(content[start:end+1]), &out); err != nil {
 		return VisionMeta{}, fmt.Errorf("model reply is not valid JSON: %w", err)
 	}
-	m := VisionMeta{Model: model, Caption: strings.TrimSpace(out.Caption), Text: strings.TrimSpace(out.Text)}
+	m := VisionMeta{Model: model, Caption: strings.TrimSpace(out.Caption), Text: strings.TrimSpace(out.Text),
+		Category: strings.TrimSpace(out.Category), Event: strings.TrimSpace(out.Event)}
 	seen := map[string]bool{}
 	for _, t := range out.Tags {
 		t = strings.ToLower(strings.TrimSpace(t))
