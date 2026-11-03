@@ -129,6 +129,10 @@ func startPhotoUploads(port int, root string, vision *VisionWorker) {
 		vision.Start()
 		fmt.Printf("     Vision tagging: %s at %s\n", vision.Client.Model, vision.Client.URL)
 	}
+	if announceUploads(port) != nil {
+		host, _ := os.Hostname()
+		fmt.Printf("     Announced on the network as %q, so the app finds this PC by itself\n", host)
+	}
 }
 
 func lanIPv4s() []string {
@@ -161,7 +165,7 @@ func (u *UploadServer) auth(next http.HandlerFunc) http.HandlerFunc {
 
 func (u *UploadServer) handlePing(w http.ResponseWriter, r *http.Request) {
 	host, _ := os.Hostname()
-	writeUploadJSON(w, http.StatusOK, map[string]any{"ok": true, "host": host, "uploadRoot": u.Root})
+	writeUploadJSON(w, http.StatusOK, map[string]any{"ok": true, "host": host, "id": serverIDOrEmpty(), "uploadRoot": u.Root})
 }
 
 func (u *UploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {

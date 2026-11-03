@@ -114,8 +114,9 @@ Complete single-page application containing UI layout, CSS stylesheets, and clie
 Separate LAN listener (default `:9877`) that receives photos shared from the Android app. Kept apart from `server.go` because it is reachable from the network and needs auth.
 
 - **Auth:** `Authorization: Bearer <token>`. Token is random, created once by `LoadOrCreateUploadToken()` and stored at `os.UserConfigDir()/phonebackup/upload_token`; compared in constant time. The token and LAN addresses are printed in the console banner only.
+- **Discovery (`announce.go`):** announces mDNS `_phonebackup._tcp` on the upload port (zeroconf, LAN interfaces with a private IPv4). TXT: `id` (random, stable, `os.UserConfigDir()/phonebackup/server_id`), `name` (hostname), `v=1`. Never the token.
 - **Endpoints:**
-  - `GET /api/upload/ping`: Returns `{ok, host, uploadRoot}` (the app's "Test connection").
+  - `GET /api/upload/ping`: Returns `{ok, host, id, uploadRoot}` (the app's "Test connection").
   - `POST /api/upload`: Streaming multipart. Text fields `album`, `tags` (comma-separated), `takenAt` (RFC 3339), `fileName` must come before the `file` part.
 - **Storage:** `<upload-dir>/<album>/<file>` (album defaults to `Unsorted`). Names are sanitized (`sanitizeName`: no traversal, no Windows-reserved names). Never overwrites: a same-name same-size file counts as a retry and is skipped; otherwise ` (n)` is added. File mtime is set to `takenAt`; EXIF is never rewritten. Metadata (album, tags, dates) goes in a sidecar `<album>/.phonebackup/<file>.json` (`PhotoMeta`).
 - **Tests:** `upload_test.go`.
