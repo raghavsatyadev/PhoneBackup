@@ -6,11 +6,12 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import io.github.raghavsatyadev.phonebackup.shared.AppGraph
 import io.github.raghavsatyadev.phonebackup.shared.ViewerApp
-import io.github.raghavsatyadev.phonebackup.shared.data.DesktopSettingsStore
+import io.github.raghavsatyadev.phonebackup.shared.data.DesktopKeyValueStore
+import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 
 /** PhoneBackup Viewer: browse the photos on the PhoneBackup server from a desktop window. */
 fun main() {
-  val graph = AppGraph(DesktopSettingsStore())
+  val graph = AppGraph(SettingsStore(DesktopKeyValueStore()))
   application {
     Window(
       onCloseRequest = ::exitApplication,

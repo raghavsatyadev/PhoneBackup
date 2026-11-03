@@ -3,6 +3,7 @@ package io.github.raghavsatyadev.phonebackup.shared.ui.settings
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.raghavsatyadev.phonebackup.shared.data.SavedServer
 import io.github.raghavsatyadev.phonebackup.shared.data.ServerConfig
 import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 import io.github.raghavsatyadev.phonebackup.shared.data.UploadClient
@@ -60,7 +61,7 @@ class SettingsViewModel(private val settings: SettingsStore, private val uploads
 
   private fun save(): ServerConfig {
     val config = ServerConfig(_state.value.address, _state.value.token)
-    settings.save(config)
+    settings.update { list -> list.upsert((list.active ?: SavedServer()).copy(address = config.address.trim(), token = config.token.trim())) }
     _state.update { it.copy(saved = true) }
     return config
   }

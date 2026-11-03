@@ -6,7 +6,8 @@ import android.net.Uri
 import android.os.Bundle
 import io.github.raghavsatyadev.phonebackup.shared.AppGraph
 import io.github.raghavsatyadev.phonebackup.shared.data.AndroidPhotoImporter
-import io.github.raghavsatyadev.phonebackup.shared.data.AndroidSettingsStore
+import io.github.raghavsatyadev.phonebackup.shared.data.AndroidKeyValueStore
+import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 import io.github.raghavsatyadev.phonebackup.transfer.TransferNotifications
 import io.github.raghavsatyadev.phonebackup.transfer.TransferService
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -22,7 +23,7 @@ class PhoneBackupApp : Application() {
 
   override fun onCreate() {
     super.onCreate()
-    graph = AppGraph(AndroidSettingsStore(this))
+    graph = AppGraph(SettingsStore(AndroidKeyValueStore(this)))
     importer = AndroidPhotoImporter(this)
     TransferNotifications.createChannels(this)
     registerActivityLifecycleCallbacks(VisibilityTracker())
