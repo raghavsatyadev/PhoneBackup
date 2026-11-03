@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -177,5 +178,26 @@ func TestEXIFOrientation(t *testing.T) {
 	img := applyOrientation(image.NewRGBA(image.Rect(0, 0, 40, 10)), 6)
 	if b := img.Bounds(); b.Dx() != 10 || b.Dy() != 40 {
 		t.Fatalf("rotated size %v", b)
+	}
+}
+
+func TestGroupsStayWithinOneAlbum(t *testing.T) {
+	root := t.TempDir()
+	t0 := time.Date(2025, 10, 21, 19, 0, 0, 0, time.UTC)
+	addPhoto(t, root, "Diwali", "a.jpg", scene(1, 0, false), t0)
+	addPhoto(t, root, "Wedding", "b.jpg", scene(1, 0, false), t0.Add(2*time.Second))
+	addPhoto(t, root, "Wedding", "c.jpg", scene(1, 6, false), t0.Add(4*time.Second))
+
+	groups, _, err := NewGroupIndex(NewRootDir(root)).Rebuild()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 1 || len(groups[0].Members) != 2 {
+		t.Fatalf("groups = %+v, want one Wedding pair", groups)
+	}
+	for _, m := range groups[0].Members {
+		if !strings.HasPrefix(m, "Wedding/") {
+			t.Fatalf("group mixes albums: %v", groups[0].Members)
+		}
 	}
 }

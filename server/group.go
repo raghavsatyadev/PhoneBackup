@@ -6,6 +6,7 @@ package main
 //   - they were taken within groupWindow of each other and differ in ≤ groupNearBits bits, or
 //   - they differ in ≤ groupSameBits bits whatever their dates (photos without a date
 //     get the import time, so the date alone can't be trusted).
+// Only photos in the same album are compared, so a group never mixes albums.
 // The best photo of a group is the sharpest, well-exposed one. Eyes-open is not checked
 // (that needs a face model).
 //
@@ -216,14 +217,15 @@ func exposureScore(g grayImage) float64 {
 // groupPhotos joins similar photos (union-find) and orders each group best first.
 func groupPhotos(lib []libPhoto, feats map[string]photoFeatures) []PhotoGroup {
 	type item struct {
-		id string
-		t  time.Time
-		f  photoFeatures
+		id    string
+		album string
+		t     time.Time
+		f     photoFeatures
 	}
 	var items []item
 	for _, p := range lib {
 		if f, ok := feats[p.ID()]; ok && f.Error == "" && !p.IsVideo() {
-			items = append(items, item{p.ID(), p.TakenAt(), f})
+			items = append(items, item{id: p.ID(), album: p.Album, t: p.TakenAt(), f: f})
 		}
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].t.Before(items[j].t) })
@@ -241,6 +243,9 @@ func groupPhotos(lib []libPhoto, feats map[string]photoFeatures) []PhotoGroup {
 	}
 	for i := range items {
 		for j := i + 1; j < len(items); j++ {
+			if items[j].album != items[i].album {
+				continue // groups never mix albums
+			}
 			d := bits.OnesCount64(items[i].f.Hash ^ items[j].f.Hash)
 			near := items[j].t.Sub(items[i].t) <= groupWindow
 			if d <= groupSameBits || (near && d <= groupNearBits) {
