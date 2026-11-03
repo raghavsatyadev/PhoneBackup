@@ -14,6 +14,7 @@
   <string name="photo_count">%1$s photos</string>
   <string name="album_label">Album / folder name</string>
   <string name="album_placeholder">Unsorted</string>
+  <string name="album_new">New album \"%1$s\" will be created on the PC</string>
   <string name="tags_label">Tags</string>
   <string name="tags_placeholder">Type a tag, then comma or Enter</string>
   <string name="action_add_tag">Add</string>

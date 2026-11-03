@@ -32,6 +32,9 @@ data class PingResponse(val ok: Boolean = false, val host: String = "", val id: 
 data class FolderInfo(val path: String = "", val canChange: Boolean = false)
 
 @Serializable
+private data class AlbumList(val albums: List<String> = emptyList())
+
+@Serializable
 data class UploadResponse(val fileName: String = "", val album: String = "", val skipped: Boolean = false, val size: Long = 0)
 
 class UploadException(message: String) : Exception(message)
@@ -49,6 +52,12 @@ class UploadClient(private val http: HttpClient) {
   suspend fun folder(config: ServerConfig): FolderInfo {
     val res = http.get("${config.baseUrl}/api/upload/folder") { auth(config) }
     return json.decodeFromString(FolderInfo.serializer(), res.checked())
+  }
+
+  /** Album folders already on the PC, most recently used first. */
+  suspend fun albums(config: ServerConfig): List<String> {
+    val res = http.get("${config.baseUrl}/api/upload/albums") { auth(config) }
+    return json.decodeFromString(AlbumList.serializer(), res.checked()).albums
   }
 
   /** Changes the photo folder; the PC refuses unless the request comes from the PC itself. */

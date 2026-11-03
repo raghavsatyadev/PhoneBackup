@@ -88,6 +88,7 @@ func (u *UploadServer) Handler() http.Handler {
 	mux.HandleFunc("/api/upload/ping", u.auth(u.handlePing))
 	mux.HandleFunc("/api/upload", u.auth(u.handleUpload))
 	mux.HandleFunc("/api/upload/folder", u.auth(u.handleFolder))
+	mux.HandleFunc("/api/upload/albums", u.auth(u.handleAlbums))
 	u.registerGallery(mux)
 	if u.Pairs != nil {
 		u.Pairs.registerPhone(mux)
@@ -166,6 +167,11 @@ func (u *UploadServer) auth(next http.HandlerFunc) http.HandlerFunc {
 func (u *UploadServer) handlePing(w http.ResponseWriter, r *http.Request) {
 	host, _ := os.Hostname()
 	writeUploadJSON(w, http.StatusOK, map[string]any{"ok": true, "host": host, "id": serverIDOrEmpty(), "uploadRoot": u.Root.Get(), "canChangeFolder": fromSameMachine(r)})
+}
+
+// handleAlbums lists the album folders so the app can offer them (newest first).
+func (u *UploadServer) handleAlbums(w http.ResponseWriter, r *http.Request) {
+	writeUploadJSON(w, http.StatusOK, map[string]any{"albums": listAlbums(u.Root.Get())})
 }
 
 func (u *UploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {

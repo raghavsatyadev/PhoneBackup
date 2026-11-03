@@ -11,8 +11,15 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.Res
 import io.github.raghavsatyadev.phonebackup.shared.resources.msg_upload_cancelled
 import io.github.raghavsatyadev.phonebackup.shared.resources.msg_upload_done
 import io.github.raghavsatyadev.phonebackup.shared.resources.msg_upload_partial
+import io.github.raghavsatyadev.phonebackup.shared.data.ServerConfig
+import io.github.raghavsatyadev.phonebackup.shared.data.UploadClient
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +37,7 @@ import kotlinx.coroutines.launch
 class ShareViewModel(
   private val queue: ShareQueue,
   private val settings: SettingsStore,
+  private val uploads: UploadClient,
 ) : ViewModel() {
   private val form =
     MutableStateFlow(settings.loadDraft().let { ShareUiState(album = it.album, tags = it.tags.toImmutableList()) })
@@ -55,6 +63,10 @@ class ShareViewModel(
   init {
     // The album and tags still on screen now belong to newly arrived photos too.
     viewModelScope.launch { queue.deliveries.drop(1).collect { saveDraft() } }
+    // The album list follows the PC photos go to; an upload may have made a new album.
+    viewModelScope.launch {
+      merge(settings.config, queue.summaries.map { settings.config.value }).collectLatest { loadAlbums(it) }
+    }
     viewModelScope.launch {
       queue.summaries.collect { s ->
         val message =
@@ -89,6 +101,24 @@ class ShareViewModel(
       ShareEvent.CancelUpload -> queue.cancel()
       ShareEvent.ClearFinished -> queue.clearFinished()
     }
+  }
+
+  /** Keeps the last list when the PC can't be reached, unless photos now go to another PC. */
+  private var albumsFor: ServerConfig? = null
+
+  private suspend fun loadAlbums(config: ServerConfig) {
+    if (config != albumsFor) form.update { it.copy(albums = persistentListOf()) }
+    albumsFor = config
+    if (!config.isComplete) return
+    val albums =
+      try {
+        uploads.albums(config)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (_: Exception) {
+        return
+      }
+    form.update { it.copy(albums = albums.toImmutableList()) }
   }
 
   private fun saveDraft() {

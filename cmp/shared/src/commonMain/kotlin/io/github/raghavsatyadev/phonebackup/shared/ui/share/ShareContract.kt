@@ -23,6 +23,8 @@ sealed interface DateTarget {
 data class ShareUiState(
   val photos: ImmutableList<PhotoItem> = persistentListOf(),
   val album: String = "",
+  /** Albums already on the active PC, newest first, to pick from. */
+  val albums: ImmutableList<String> = persistentListOf(),
   val tagInput: String = "",
   val tags: ImmutableList<String> = persistentListOf(),
   val isUploading: Boolean = false,

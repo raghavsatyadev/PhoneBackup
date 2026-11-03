@@ -55,14 +55,11 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.action_set_date_all
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_upload
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_cancel_upload
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_close
-import io.github.raghavsatyadev.phonebackup.shared.resources.album_label
-import io.github.raghavsatyadev.phonebackup.shared.resources.album_placeholder
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_add_photo_alternate
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_check_circle
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_close
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_cloud_upload
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_event
-import io.github.raghavsatyadev.phonebackup.shared.resources.ic_folder
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_refresh
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_sell
 import io.github.raghavsatyadev.phonebackup.shared.resources.photo_count
@@ -83,17 +80,7 @@ fun GroupForm(state: ShareUiState, onEvent: (ShareEvent) -> Unit, onPickPhotos: 
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
   ) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      OutlinedTextField(
-        value = state.album,
-        onValueChange = { onEvent(ShareEvent.AlbumChanged(it)) },
-        label = { Text(stringResource(Res.string.album_label)) },
-        placeholder = { Text(stringResource(Res.string.album_placeholder)) },
-        leadingIcon = { Icon(painterResource(Res.drawable.ic_folder), null) },
-        singleLine = true,
-        enabled = !locked,
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.fillMaxWidth(),
-      )
+      AlbumField(state.album, state.albums, enabled = !locked) { onEvent(ShareEvent.AlbumChanged(it)) }
       Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
           value = state.tagInput,

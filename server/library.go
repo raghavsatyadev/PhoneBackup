@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -100,4 +101,30 @@ func resolvePhotoID(root, id string) (string, error) {
 		return "", os.ErrNotExist
 	}
 	return path, nil
+}
+
+// listAlbums returns the album folder names under root, most recently changed first.
+func listAlbums(root string) []string {
+	entries, _ := os.ReadDir(root)
+	type album struct {
+		name string
+		mod  time.Time
+	}
+	var found []album
+	for _, e := range entries {
+		if !e.IsDir() || !isAlbumName(e.Name()) {
+			continue
+		}
+		var mod time.Time
+		if fi, err := e.Info(); err == nil {
+			mod = fi.ModTime()
+		}
+		found = append(found, album{e.Name(), mod})
+	}
+	sort.SliceStable(found, func(i, j int) bool { return found[i].mod.After(found[j].mod) })
+	names := make([]string, 0, len(found))
+	for _, a := range found {
+		names = append(names, a.name)
+	}
+	return names
 }

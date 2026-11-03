@@ -64,7 +64,7 @@ fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
   AppTheme {
     AppImageLoader(graph)
     // Created here, not per entry, so switching tabs keeps the form and the loaded library.
-    val share = viewModel { ShareViewModel(graph.queue, graph.settings) }
+    val share = viewModel { ShareViewModel(graph.queue, graph.settings, graph.uploads) }
     val library = libraryViewModel(graph)
     val backStack = rememberStartStack(graph, ShareKey)
     WatchNetwork(graph)
