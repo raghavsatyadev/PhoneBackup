@@ -6,9 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
+import androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments
 import androidx.core.content.IntentCompat
 import io.github.raghavsatyadev.phonebackup.shared.App
 
@@ -16,8 +14,10 @@ class MainActivity : ComponentActivity() {
   private val app
     get() = application as PhoneBackupApp
 
+  // The system file picker, not the photo picker: the photo picker hides the real file
+  // names (it reports "<id>.jpg"), and the name is a date clue for photos without EXIF.
   private val picker =
-    registerForActivityResult(PickMultipleVisualMedia(MAX_PICK)) { uris -> app.importPhotos(uris) }
+    registerForActivityResult(OpenMultipleDocuments()) { uris -> app.importPhotos(uris.take(MAX_PICK)) }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
     setContent {
       App(
         graph = app.graph,
-        onPickPhotos = { picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly)) },
+        onPickPhotos = { picker.launch(arrayOf("image/*")) },
       )
     }
   }

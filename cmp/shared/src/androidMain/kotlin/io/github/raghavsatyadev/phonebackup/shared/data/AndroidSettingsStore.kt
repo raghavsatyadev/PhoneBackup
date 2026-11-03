@@ -21,8 +21,20 @@ class AndroidSettingsStore(context: Context) : SettingsStore {
     state.value = clean
   }
 
+  override fun loadDraft() =
+    ShareDraft(
+      album = prefs.getString(KEY_ALBUM, "").orEmpty(),
+      tags = prefs.getString(KEY_TAGS, "").orEmpty().split(',').filter { it.isNotBlank() },
+    )
+
+  override fun saveDraft(draft: ShareDraft) {
+    prefs.edit().putString(KEY_ALBUM, draft.album).putString(KEY_TAGS, draft.tags.joinToString(",")).apply()
+  }
+
   private companion object {
     const val KEY_ADDRESS = "address"
     const val KEY_TOKEN = "token"
+    const val KEY_ALBUM = "draft_album"
+    const val KEY_TAGS = "draft_tags"
   }
 }

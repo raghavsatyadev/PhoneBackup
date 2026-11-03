@@ -127,16 +127,19 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
 
 ---
 
-### 7. `cmp/` — Android Share Client (Kotlin Multiplatform + Compose Multiplatform)
-Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gradlew :androidApp:assembleDebug` (release: `:androidApp:assembleRelease`, signed with the key named in `~/.gradle/gradle.properties` `PHONEBACKUP_*`, shrunk with R8); tests: `./gradlew :shared:testAndroidHostTest`.
+### 7. `cmp/` — Android Share App and Desktop Viewer (Kotlin Multiplatform + Compose Multiplatform)
+Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gradlew :androidApp:assembleDebug` (release: `:androidApp:assembleRelease`, signed with the key named in `~/.gradle/gradle.properties` `PHONEBACKUP_*`, shrunk with R8); tests: `./gradlew :shared:testAndroidHostTest`. Desktop viewer: `./gradlew :desktopApp:run`.
 
-- `androidApp/`: Thin Android shell. `MainActivity` receives `ACTION_SEND` / `ACTION_SEND_MULTIPLE` for `image/*` (onCreate + onNewIntent) and the photo picker; `PhoneBackupApp` builds the `AppGraph` and imports/restores photos on an app-wide scope.
+- `androidApp/`: Thin Android shell. `MainActivity` receives `ACTION_SEND` / `ACTION_SEND_MULTIPLE` for `image/*` (onCreate + onNewIntent) and the in-app picker (`OpenMultipleDocuments`, the system file picker: the photo picker hides real file names); `PhoneBackupApp` builds the `AppGraph` and imports/restores photos on an app-wide scope.
 - `shared/commonMain`: All UI and logic.
   - `data/UploadClient.kt` (Ktor, streams the file), `ServerConfig.kt`, `PhotoInbox.kt` (activity → screen hand-off), `PhotoDates.kt` (EXIF and filename date parsing), `LocalFiles.kt`.
   - `ui/share/`: Share screen (album, tags, per-photo or group date editing, upload with per-photo status/retry) with `ShareViewModel` (UDF: state + events + one-off messages).
   - `ui/settings/`: PC address + token, test connection.
+  - `ui/library/`: Photo viewer over the gallery API. `LibraryViewModel` (views: All / Albums / Categories / Events, hide-similar shows only best shots), `LibraryScreen` grid, `PhotoViewer` (HorizontalPager swipe, Telephoto `zoomable` pinch/double-tap zoom; Image must use `ContentScale.Inside`; desktop gets prev/next/zoom buttons and arrow/Esc keys), `PhotoDetails`. `App` = Android (Share + Library tabs), `ViewerApp` = desktop (Library + Settings).
+  - Share drafts: album and tags are saved through `SettingsStore.saveDraft` (Android prefs) and cleared once nothing is waiting; a date the user picks is written to the photo's `.meta` (`saveImportedDate`), so both survive Android killing the app.
   - Strings live in `composeResources/values/strings.xml`.
 - `shared/androidMain`: `AndroidPhotoImporter` copies shared URIs to `filesDir/incoming/<id>/` straight away (the URI grant ends with the activity) and detects the date: EXIF DateTimeOriginal → EXIF DateTime → MediaStore DATE_TAKEN → file name → file time → now. Saves `.meta` so the queue survives restarts. Local copies are deleted after upload. Also `AndroidSettingsStore`, OkHttp client, `BackHandler`.
+- `desktopApp/` + `shared/desktopMain`: Compose Desktop window running `ViewerApp`; `DesktopSettingsStore` keeps address and token in Java Preferences.
 - Emulator testing: `adb reverse tcp:9877 tcp:9877`, then use `127.0.0.1:9877` in the app.
 
 ---

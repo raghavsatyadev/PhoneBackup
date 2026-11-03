@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.raghavsatyadev.phonebackup.shared.data.PhotoInbox
 import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
+import io.github.raghavsatyadev.phonebackup.shared.data.ShareDraft
 import io.github.raghavsatyadev.phonebackup.shared.data.UploadClient
 import io.github.raghavsatyadev.phonebackup.shared.data.deleteImported
+import io.github.raghavsatyadev.phonebackup.shared.data.saveImportedDate
 import io.github.raghavsatyadev.phonebackup.shared.model.DateSource
 import io.github.raghavsatyadev.phonebackup.shared.model.PhotoItem
 import io.github.raghavsatyadev.phonebackup.shared.model.UploadStatus
@@ -31,7 +33,8 @@ class ShareViewModel(
   private val settings: SettingsStore,
   private val uploads: UploadClient,
 ) : ViewModel() {
-  private val _state = MutableStateFlow(ShareUiState())
+  private val _state =
+    MutableStateFlow(settings.loadDraft().let { ShareUiState(album = it.album, tags = it.tags.toImmutableList()) })
   val state: StateFlow<ShareUiState> = _state.asStateFlow()
 
   private val _messages = Channel<ShareMessage>(Channel.BUFFERED)
@@ -42,6 +45,8 @@ class ShareViewModel(
       inbox.pending.filter { it.isNotEmpty() }.collect {
         val incoming = inbox.drain().map { p -> p.toItem() }
         _state.update { s -> s.copy(photos = (s.photos + incoming).distinctBy { it.id }.toImmutableList()) }
+        // The album and tags still on screen now belong to these photos too.
+        saveDraft()
       }
     }
     viewModelScope.launch {
@@ -51,19 +56,36 @@ class ShareViewModel(
 
   fun onEvent(event: ShareEvent) {
     when (event) {
-      is ShareEvent.AlbumChanged -> _state.update { it.copy(album = event.value) }
+      is ShareEvent.AlbumChanged -> {
+        _state.update { it.copy(album = event.value) }
+        saveDraft()
+      }
       is ShareEvent.TagInputChanged -> onTagInput(event.value)
       ShareEvent.AddTag -> addTags(_state.value.tagInput)
-      is ShareEvent.RemoveTag ->
+      is ShareEvent.RemoveTag -> {
         _state.update { s -> s.copy(tags = s.tags.filterNot { it == event.tag }.toImmutableList()) }
+        saveDraft()
+      }
       is ShareEvent.RemovePhoto -> removePhoto(event.id)
       is ShareEvent.EditDate -> _state.update { it.copy(dateTarget = event.target) }
       ShareEvent.DismissDateEdit -> _state.update { it.copy(dateTarget = null) }
       is ShareEvent.DateChosen -> applyDate(event)
       ShareEvent.Upload -> upload()
-      ShareEvent.ClearFinished ->
+      ShareEvent.ClearFinished -> {
         _state.update { s -> s.copy(photos = s.photos.filterNot { it.isFinished }.toImmutableList()) }
+        clearDraftIfDone()
+      }
     }
+  }
+
+  private fun saveDraft() {
+    val s = _state.value
+    settings.saveDraft(ShareDraft(s.album, s.tags))
+  }
+
+  /** Once nothing is waiting, the next share starts with an empty album and tags. */
+  private fun clearDraftIfDone() {
+    if (_state.value.photos.none { it.needsUpload }) settings.saveDraft(ShareDraft())
   }
 
   /** Typing a comma finishes a tag, like most tag inputs. */
@@ -82,6 +104,7 @@ class ShareViewModel(
       val merged = (s.tags + fresh).distinctBy { it.lowercase() }
       s.copy(tags = merged.toImmutableList(), tagInput = keep.trimStart())
     }
+    saveDraft()
   }
 
   private fun removePhoto(id: String) {
@@ -89,6 +112,7 @@ class ShareViewModel(
     if (photo.status == UploadStatus.Uploading) return
     deleteImported(photo.path)
     _state.update { s -> s.copy(photos = s.photos.filterNot { it.id == id }.toImmutableList()) }
+    clearDraftIfDone()
   }
 
   private fun applyDate(event: ShareEvent.DateChosen) {
@@ -97,7 +121,10 @@ class ShareViewModel(
       val photos =
         s.photos.map { p ->
           val hit = target == DateTarget.All || (target is DateTarget.One && target.id == p.id)
-          if (hit && !p.isFinished) p.copy(takenAt = event.value, dateSource = DateSource.Manual) else p
+          if (hit && !p.isFinished) {
+            saveImportedDate(p.path, event.value)
+            p.copy(takenAt = event.value, dateSource = DateSource.Manual)
+          } else p
         }
       s.copy(photos = photos.toImmutableList(), dateTarget = null)
     }
@@ -144,6 +171,7 @@ class ShareViewModel(
         }
       }
       _state.update { it.copy(isUploading = false, currentProgress = 0f) }
+      clearDraftIfDone()
       val message =
         if (failed == 0) ShareMessage(Res.string.msg_upload_done, sent.toString())
         else ShareMessage(Res.string.msg_upload_partial, failed.toString())

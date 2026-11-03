@@ -107,6 +107,8 @@ The first command only prints the plan. `-apply` builds `_Organized\<Category>\<
 
 Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
 
+**Photo viewer.** The Android app's Library tab and the desktop viewer browse everything on the PC by album, category or event. Swipe (or use the arrow buttons and keys on desktop) for next and previous, pinch or double-tap (or the zoom buttons) to zoom, and open details for the caption and tags. Run the desktop viewer with `cd cmp; ./gradlew :desktopApp:run`, then enter the PC address and upload token in Settings.
+
 **Similar photos.** Bursts and retakes are grouped automatically (on start, and shortly after uploads stop), and the sharpest, best-exposed shot of each group is picked. The viewer shows only that one, with a badge for the rest. To see the groups in the console, run `phonebackup group`. Eyes-open is not checked yet.
 
 ---

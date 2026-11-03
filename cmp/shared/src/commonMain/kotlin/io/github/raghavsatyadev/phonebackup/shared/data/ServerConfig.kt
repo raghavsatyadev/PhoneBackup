@@ -21,9 +21,17 @@ data class ServerConfig(val address: String = "", val token: String = "") {
   }
 }
 
+/** Album and tags typed on the share screen but not uploaded yet. */
+data class ShareDraft(val album: String = "", val tags: List<String> = emptyList())
+
 /** Persists the server address and token. Implemented per platform. */
 interface SettingsStore {
   val config: StateFlow<ServerConfig>
 
   fun save(config: ServerConfig)
+
+  /** Kept so album and tags survive Android stopping the app before an upload. */
+  fun loadDraft(): ShareDraft = ShareDraft()
+
+  fun saveDraft(draft: ShareDraft) {}
 }
