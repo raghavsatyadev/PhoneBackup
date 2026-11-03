@@ -82,7 +82,7 @@ Provides the web dashboard API backend and serves static assets.
 Entry point for command-line execution and service bootstrapping.
 
 - **Supported CLI Commands:**
-  - `phonebackup.exe server [-port 9876]`: Starts the Web UI server (default port `9876`). Auto-detects and registers `phonebackup_status.json` in the current folder if present.
+  - `phonebackup.exe server [-port 9876] [-upload-port 9877] [-upload-dir <dir>]`: Starts the Web UI server (default port `9876`). Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default `~/Pictures/PhoneBackup`).
   - `phonebackup.exe resume <path-or-file>`: Directly resumes a backup given a folder or status JSON file.
   - `phonebackup.exe backup -dest <dir> -sources <dirs> [-device <serial>] [-include <patterns>]`: Starts a CLI backup while simultaneously broadcasting to the web dashboard.
   - `phonebackup.exe devices`: Lists connected Android devices in the console.
@@ -106,7 +106,33 @@ Complete single-page application containing UI layout, CSS stylesheets, and clie
 
 ---
 
-### 6. Configuration & Dependency Files
+### 6. `upload.go` — Photo Upload API for the Android Share App
+Separate LAN listener (default `:9877`) that receives photos shared from the Android app. Kept apart from `server.go` because it is reachable from the network and needs auth.
+
+- **Auth:** `Authorization: Bearer <token>`. Token is random, created once by `LoadOrCreateUploadToken()` and stored at `os.UserConfigDir()/phonebackup/upload_token`; compared in constant time. The token and LAN addresses are printed in the console banner only.
+- **Endpoints:**
+  - `GET /api/upload/ping`: Returns `{ok, host, uploadRoot}` (the app's "Test connection").
+  - `POST /api/upload`: Streaming multipart. Text fields `album`, `tags` (comma-separated), `takenAt` (RFC 3339), `fileName` must come before the `file` part.
+- **Storage:** `<upload-dir>/<album>/<file>` (album defaults to `Unsorted`). Names are sanitized (`sanitizeName`: no traversal, no Windows-reserved names). Never overwrites: a same-name same-size file counts as a retry and is skipped; otherwise ` (n)` is added. File mtime is set to `takenAt`; EXIF is never rewritten. Metadata (album, tags, dates) goes in a sidecar `<album>/.phonebackup/<file>.json` (`PhotoMeta`).
+- **Tests:** `upload_test.go`.
+
+---
+
+### 7. `android/` — Android Share Client (Kotlin Multiplatform + Compose Multiplatform)
+Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd android; ./gradlew :androidApp:assembleDebug`; tests: `./gradlew :shared:testAndroidHostTest`.
+
+- `androidApp/`: Thin Android shell. `MainActivity` receives `ACTION_SEND` / `ACTION_SEND_MULTIPLE` for `image/*` (onCreate + onNewIntent) and the photo picker; `PhoneBackupApp` builds the `AppGraph` and imports/restores photos on an app-wide scope.
+- `shared/commonMain`: All UI and logic.
+  - `data/UploadClient.kt` (Ktor, streams the file), `ServerConfig.kt`, `PhotoInbox.kt` (activity → screen hand-off), `PhotoDates.kt` (EXIF and filename date parsing), `LocalFiles.kt`.
+  - `ui/share/`: Share screen (album, tags, per-photo or group date editing, upload with per-photo status/retry) with `ShareViewModel` (UDF: state + events + one-off messages).
+  - `ui/settings/`: PC address + token, test connection.
+  - Strings live in `composeResources/values/strings.xml`.
+- `shared/androidMain`: `AndroidPhotoImporter` copies shared URIs to `filesDir/incoming/<id>/` straight away (the URI grant ends with the activity) and detects the date: EXIF DateTimeOriginal → EXIF DateTime → MediaStore DATE_TAKEN → file name → file time → now. Saves `.meta` so the queue survives restarts. Local copies are deleted after upload. Also `AndroidSettingsStore`, OkHttp client, `BackHandler`.
+- Emulator testing: `adb reverse tcp:9877 tcp:9877`, then use `127.0.0.1:9877` in the app.
+
+---
+
+### 8. Configuration & Dependency Files
 - `go.mod` / `go.sum`: Standard Go module definition. Zero external CGo or runtime dependencies.
 - `README.md`: User-facing documentation and usage guide.
 

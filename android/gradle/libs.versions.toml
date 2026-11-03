@@ -1,0 +1,83 @@
+[versions]
+appName = "PhoneBackup Share"
+nameSpace = "io.github.raghavsatyadev.phonebackup"
+sharedNameSpace = "io.github.raghavsatyadev.phonebackup.shared"
+appId = "io.github.raghavsatyadev.phonebackup"
+
+targetSdk = "37"
+minSdk = "26"
+compileSdk = "37"
+buildTools = "36.1.0"
+
+versionCode = "1"
+versionName = "0.1.0"
+
+# Plugins (same as SCUS, already cached on this machine)
+agp = "9.6.0-alpha02"
+kotlin = "2.5.0-Beta1"
+
+# Libraries
+activity = "1.14.0-alpha03"
+androidx-core = "1.19.1"
+coil = "3.6.3"
+collections-immutable = "0.5.2"
+compose-material3-mp = "1.13.0-beta01"
+compose-multiplatform = "1.13.0-beta01"
+compose-ui = "1.13.0-beta02"
+coroutines = "1.11.0"
+exifinterface = "1.4.2"
+kotlinx-datetime = "0.8.0"
+ktor = "3.6.0"
+lifecycle-mp = "2.11.0"
+serialization = "1.12.0-RC"
+
+[libraries]
+androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
+compose-activity = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "compose-ui" }
+
+compose-ui-mp = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
+compose-foundation-mp = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
+compose-material3-mp = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-mp" }
+compose-components-resources-mp = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
+compose-ui-tooling-preview-mp = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
+compose-runtime-mp = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
+
+lifecycle-viewmodel-compose-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle-mp" }
+lifecycle-runtime-compose-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-mp" }
+
+coil-compose-mp = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version.ref = "collections-immutable" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+
+[bundles]
+compose-mp = [
+    "compose-ui-mp",
+    "compose-ui-tooling-preview-mp",
+    "compose-foundation-mp",
+    "compose-material3-mp",
+    "compose-components-resources-mp",
+    "compose-runtime-mp",
+]
+lifecycle-mp = [
+    "lifecycle-viewmodel-compose-mp",
+    "lifecycle-runtime-compose-mp",
+]

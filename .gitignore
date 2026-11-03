@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-phonebackup
+/phonebackup
 phonebackup.exe
 
 # Go build artifacts
@@ -49,6 +49,15 @@ test_dest_backup/
 test_state.json
 phonebackup_status.json
 backup_status.json
+
+# Android (Gradle) build output and machine-local config
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
+
+# Local agent skill links (junctions to another project on this machine)
+.claude/skills/
 
 # Environment variables
 .env

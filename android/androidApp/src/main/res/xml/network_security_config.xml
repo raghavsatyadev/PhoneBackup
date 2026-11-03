@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The PhoneBackup PC server runs on the local network over plain HTTP (any LAN IP). -->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

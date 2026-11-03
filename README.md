@@ -63,6 +63,16 @@ Then open `http://localhost:9876` in your browser.
 ./phonebackup resume "/path/to/backup/phonebackup_status.json"
 ```
 
+### 4. Share Photos from Your Phone (Android app)
+The `android/` folder holds **PhoneBackup Share**, an Android app that sends photos to your PC over Wi-Fi.
+
+1. Start the server (`phonebackup server`). It prints the PC address (e.g. `http://192.168.1.20:9877`) and an upload token. Allow it through the firewall on first run.
+2. Build and install the app: `cd android && ./gradlew :androidApp:installDebug`.
+3. In the app, enter the address and token, then tap **Test connection**.
+4. Share photos to **PhoneBackup Share** from any app (or pick them in the app). Set an album name and tags, check or edit the dates, and tap **Upload to PC**.
+
+Photos are saved unchanged in `~/Pictures/PhoneBackup/<album>/` (change with `-upload-dir`). Each file's modified time is set to the photo's date, and tags and dates are stored in `<album>/.phonebackup/<file>.json`.
+
 ---
 
 ## ✨ Features
@@ -72,6 +82,7 @@ Then open `http://localhost:9876` in your browser.
 - **Failed Files Box & Retry**: Failed files are highlighted in their own section, preserved in the status JSON, and can be retried with one click.
 - **Silent Windows Execution**: Native process flags (`CREATE_NO_WINDOW`) prevent console window flashing during ADB file pulls.
 - **WiFi ADB Support**: Pair and connect wirelessly over your local WiFi network directly from the dashboard.
+- **Android Share App**: Share photos from any app to your PC over Wi-Fi, grouped into an album with tags and editable dates (read from photo data). The upload API listens on your LAN (port 9877) and needs a token.
 
 ---
 

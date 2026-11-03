@@ -46,6 +46,8 @@ USAGE:
 
 COMMANDS:
   server [-port 9876]              Start Web Dashboard (default on http://localhost:9876)
+         [-upload-port 9877]       Photo upload API for the Android app (0 disables it)
+         [-upload-dir <folder>]    Where shared photos are saved (default: Pictures\PhoneBackup)
   resume <path-or-file>            Resume backup from phonebackup_status.json (CLI + Web UI)
                                    Example: phonebackup.exe resume D:\Backups\Phone
                                    Example: phonebackup.exe resume D:\Backups\Phone\phonebackup_status.json
@@ -101,7 +103,13 @@ func main() {
 func handleServer(args []string) {
 	fs := flag.NewFlagSet("server", flag.ExitOnError)
 	port := fs.Int("port", getPort(), "HTTP server port")
+	uploadPort := fs.Int("upload-port", 9877, "Photo upload API port for the Android app (0 disables it)")
+	uploadDir := fs.String("upload-dir", DefaultUploadRoot(), "Folder where photos shared from the Android app are saved")
 	_ = fs.Parse(args)
+
+	if *uploadPort > 0 {
+		startPhotoUploads(*uploadPort, *uploadDir)
+	}
 
 	// Auto-detect and register phonebackup_status.json if present in current directory
 	var initial *BackupStatus
