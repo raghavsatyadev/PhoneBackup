@@ -55,6 +55,7 @@ type UploadServer struct {
 	Root   string
 	Token  string
 	Vision *VisionWorker // nil when vision tagging is off
+	Groups *GroupIndex   // nil in tests; rebuilds similar-photo groups after uploads
 }
 
 // DefaultUploadRoot is <Pictures>/PhoneBackup.
@@ -94,12 +95,14 @@ func (u *UploadServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/upload/ping", u.auth(u.handlePing))
 	mux.HandleFunc("/api/upload", u.auth(u.handleUpload))
+	u.registerGallery(mux)
 	return mux
 }
 
 // StartUploadServer listens on all interfaces so phones on the LAN can reach it.
 func StartUploadServer(port int, root, token string, vision *VisionWorker) {
-	u := &UploadServer{Root: root, Token: token, Vision: vision}
+	u := &UploadServer{Root: root, Token: token, Vision: vision, Groups: NewGroupIndex(root)}
+	go u.Groups.Rebuild()
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: u.Handler(), ReadHeaderTimeout: 15 * time.Second}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -198,6 +201,7 @@ func (u *UploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		u.Vision.Enqueue(filepath.Join(u.Root, res.Album), res.FileName)
+		u.Groups.Schedule()
 		writeUploadJSON(w, http.StatusOK, res)
 		return
 	}

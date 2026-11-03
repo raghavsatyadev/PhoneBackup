@@ -56,6 +56,7 @@ COMMANDS:
   backup [flags]                   Start a new backup (CLI + live Web UI)
   organize [-dir <folder>]         Sort tagged uploads into _Organized\<Category>\<Year Event>
            [-apply]                (dry run unless -apply; hard-links, never moves originals)
+  group [-dir <folder>]            Find similar photos (bursts, retakes) and pick the best of each
   devices                          List connected Android devices
   help                             Show this help message
 
@@ -83,6 +84,8 @@ func main() {
 		handleDevices()
 	case "organize":
 		handleOrganize(os.Args[2:])
+	case "group":
+		handleGroup(os.Args[2:])
 	case "resume":
 		if len(os.Args) < 3 {
 			fmt.Println("Error: please specify the destination directory or status file path.")

@@ -105,6 +105,8 @@ The first command only prints the plan. `-apply` builds `_Organized\<Category>\<
 
 Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
 
+**Similar photos.** Bursts and retakes are grouped automatically (on start, and shortly after uploads stop), and the sharpest, best-exposed shot of each group is picked. The viewer shows only that one, with a badge for the rest. To see the groups in the console, run `phonebackup group`. Eyes-open is not checked yet.
+
 ---
 
 ## ✨ Features
