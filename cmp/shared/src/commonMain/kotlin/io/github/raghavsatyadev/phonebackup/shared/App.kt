@@ -11,12 +11,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
+import io.github.raghavsatyadev.phonebackup.shared.nav.AppNavDisplay
+import io.github.raghavsatyadev.phonebackup.shared.nav.LibraryKey
+import io.github.raghavsatyadev.phonebackup.shared.nav.NavConfig
+import io.github.raghavsatyadev.phonebackup.shared.nav.SettingsKey
+import io.github.raghavsatyadev.phonebackup.shared.nav.ShareKey
+import io.github.raghavsatyadev.phonebackup.shared.nav.open
+import io.github.raghavsatyadev.phonebackup.shared.nav.selectTab
 import io.github.raghavsatyadev.phonebackup.shared.resources.Res
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_cloud_upload
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_photo_library
@@ -32,49 +39,40 @@ import io.github.raghavsatyadev.phonebackup.shared.ui.share.ShareRoute
 import io.github.raghavsatyadev.phonebackup.shared.ui.share.ShareViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.theme.AppTheme
 import kotlinx.coroutines.flow.drop
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-
-private enum class MainTab { Share, Library }
 
 /** The Android app: Share and Library tabs, plus Settings. */
 @Composable
 fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
   AppTheme {
     AppImageLoader(graph)
-    var showSettings by rememberSaveable { mutableStateOf(!graph.settings.config.value.isComplete) }
-    var tab by rememberSaveable { mutableStateOf(MainTab.Share) }
+    // Created here, not per entry, so switching tabs keeps the form and the loaded library.
+    val share = viewModel { ShareViewModel(graph.queue, graph.settings) }
+    val library = libraryViewModel(graph)
+    val backStack = rememberStartStack(graph, ShareKey)
     // Photos shared from another app always land on the Share tab.
-    LaunchedEffect(graph.queue) { graph.queue.deliveries.drop(1).collect { tab = MainTab.Share } }
-    if (showSettings) {
-      Settings(graph) { showSettings = false }
-      return@AppTheme
-    }
+    LaunchedEffect(graph.queue) { graph.queue.deliveries.drop(1).collect { backStack.selectTab(ShareKey) } }
+    val top = backStack.lastOrNull()
     Scaffold(
       bottomBar = {
-        NavigationBar {
-          NavigationBarItem(
-            selected = tab == MainTab.Share,
-            onClick = { tab = MainTab.Share },
-            icon = { Icon(painterResource(Res.drawable.ic_cloud_upload), null) },
-            label = { Text(stringResource(Res.string.tab_share)) },
-          )
-          NavigationBarItem(
-            selected = tab == MainTab.Library,
-            onClick = { tab = MainTab.Library },
-            icon = { Icon(painterResource(Res.drawable.ic_photo_library), null) },
-            label = { Text(stringResource(Res.string.tab_library)) },
-          )
+        if (top == ShareKey || top == LibraryKey) {
+          NavigationBar {
+            Tab(backStack, ShareKey, Res.drawable.ic_cloud_upload, Res.string.tab_share)
+            Tab(backStack, LibraryKey, Res.drawable.ic_photo_library, Res.string.tab_library)
+          }
         }
       }
     ) { padding ->
       Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
-        when (tab) {
-          MainTab.Share -> {
-            val vm = viewModel { ShareViewModel(graph.queue, graph.settings) }
-            ShareRoute(vm, onPickPhotos = onPickPhotos, onOpenSettings = { showSettings = true })
+        AppNavDisplay(backStack) {
+          entry<ShareKey> {
+            ShareRoute(share, onPickPhotos = onPickPhotos, onOpenSettings = { backStack.open(SettingsKey) })
           }
-          MainTab.Library -> Library(graph) { showSettings = true }
+          entry<LibraryKey> { LibraryRoute(library, onOpenSettings = { backStack.open(SettingsKey) }) }
+          settingsEntry(graph, backStack)
         }
       }
     }
@@ -86,20 +84,45 @@ fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
 fun ViewerApp(graph: AppGraph) {
   AppTheme {
     AppImageLoader(graph)
-    var showSettings by rememberSaveable { mutableStateOf(!graph.settings.config.value.isComplete) }
-    if (showSettings) Settings(graph) { showSettings = false } else Library(graph) { showSettings = true }
+    val library = libraryViewModel(graph)
+    val backStack = rememberStartStack(graph, LibraryKey)
+    AppNavDisplay(backStack) {
+      entry<LibraryKey> { LibraryRoute(library, onOpenSettings = { backStack.open(SettingsKey) }) }
+      settingsEntry(graph, backStack)
+    }
+  }
+}
+
+/** Opens Settings over [root] on first run, so Back from it lands on the main screen. */
+@Composable
+private fun rememberStartStack(graph: AppGraph, root: NavKey): NavBackStack<NavKey> =
+  if (graph.settings.config.value.isComplete) rememberNavBackStack(NavConfig, root)
+  else rememberNavBackStack(NavConfig, root, SettingsKey)
+
+private fun EntryProviderScope<NavKey>.settingsEntry(graph: AppGraph, backStack: NavBackStack<NavKey>) {
+  entry<SettingsKey> {
+    val vm = viewModel { SettingsViewModel(graph.settings, graph.uploads) }
+    SettingsRoute(vm, onBack = { backStack.removeLastOrNull() })
   }
 }
 
 @Composable
-private fun Settings(graph: AppGraph, onBack: () -> Unit) {
-  val vm = viewModel { SettingsViewModel(graph.settings, graph.uploads) }
-  SettingsRoute(vm, onBack = onBack)
+private fun libraryViewModel(graph: AppGraph): LibraryViewModel {
+  val uncategorized = stringResource(Res.string.no_category)
+  return viewModel { LibraryViewModel(graph.settings, graph.gallery) { uncategorized } }
 }
 
 @Composable
-private fun Library(graph: AppGraph, onOpenSettings: () -> Unit) {
-  val uncategorized = stringResource(Res.string.no_category)
-  val vm = viewModel { LibraryViewModel(graph.settings, graph.gallery) { uncategorized } }
-  LibraryRoute(vm, onOpenSettings = onOpenSettings)
+private fun androidx.compose.foundation.layout.RowScope.Tab(
+  backStack: NavBackStack<NavKey>,
+  key: NavKey,
+  icon: DrawableResource,
+  label: StringResource,
+) {
+  NavigationBarItem(
+    selected = backStack.lastOrNull() == key,
+    onClick = { backStack.selectTab(key) },
+    icon = { Icon(painterResource(icon), null) },
+    label = { Text(stringResource(label)) },
+  )
 }

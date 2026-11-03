@@ -29,6 +29,7 @@ exifinterface = "1.4.2"
 kotlinx-datetime = "0.8.0"
 ktor = "3.6.0"
 lifecycle-mp = "2.11.0"
+navigation3-mp = "1.2.0"
 serialization = "1.12.0-RC"
 telephoto = "0.19.0"
 
@@ -47,6 +48,8 @@ compose-runtime-mp = { module = "org.jetbrains.compose.runtime:runtime", version
 
 lifecycle-viewmodel-compose-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle-mp" }
 lifecycle-runtime-compose-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-mp" }
+lifecycle-viewmodel-navigation3-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle-mp" }
+navigation3-ui-mp = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3-mp" }
 
 coil-compose-mp = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 telephoto-zoomable = { module = "me.saket.telephoto:zoomable", version.ref = "telephoto" }
@@ -87,4 +90,6 @@ compose-mp = [
 lifecycle-mp = [
     "lifecycle-viewmodel-compose-mp",
     "lifecycle-runtime-compose-mp",
+    "lifecycle-viewmodel-navigation3-mp",
+    "navigation3-ui-mp",
 ]

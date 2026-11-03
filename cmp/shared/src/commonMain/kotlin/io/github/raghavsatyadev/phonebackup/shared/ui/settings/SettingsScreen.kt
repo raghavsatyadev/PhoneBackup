@@ -65,7 +65,6 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.test_failed
 import io.github.raghavsatyadev.phonebackup.shared.resources.test_ok
 import io.github.raghavsatyadev.phonebackup.shared.resources.test_running
 import io.github.raghavsatyadev.phonebackup.shared.resources.token_label
-import io.github.raghavsatyadev.phonebackup.shared.ui.BackHandler
 import io.github.raghavsatyadev.phonebackup.shared.ui.theme.DelayedLoadingIndicator
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -74,7 +73,6 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun SettingsRoute(viewModel: SettingsViewModel, onBack: () -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
-  BackHandler(onBack = onBack)
   SettingsScreen(state = state, onEvent = viewModel::onEvent, onBack = onBack)
 }
 
