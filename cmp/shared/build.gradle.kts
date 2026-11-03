@@ -32,6 +32,9 @@ kotlin {
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.ktor.client.core)
+      api(libs.koin.core)
+      implementation(libs.koin.compose)
+      implementation(libs.koin.compose.viewmodel)
     }
     androidMain.dependencies {
       implementation(libs.ktor.client.okhttp)
