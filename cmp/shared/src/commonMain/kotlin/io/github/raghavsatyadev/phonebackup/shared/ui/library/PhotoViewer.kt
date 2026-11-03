@@ -37,7 +37,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
@@ -277,7 +277,7 @@ private fun ZoomablePhoto(
     onDispose { if (zooms[photo.id] === zoom) zooms.remove(photo.id) }
   }
   val painter = rememberAsyncImagePainter(GalleryClient.thumbUrl(config, photo.id, large = true))
-  val loaded by painter.state.collectAsState()
+  val loaded by painter.state.collectAsStateWithLifecycle()
   val image: Painter? = (loaded as? AsyncImagePainter.State.Success)?.painter
   LaunchedEffect(image) {
     val size = image?.intrinsicSize

@@ -30,7 +30,7 @@ class TransferService : Service() {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
   private var watcher: Job? = null
   private val queue
-    get() = (application as PhoneBackupApp).graph.queue
+    get() = (application as PhoneBackupApp).queue
 
   override fun onBind(intent: Intent?): IBinder? = null
 

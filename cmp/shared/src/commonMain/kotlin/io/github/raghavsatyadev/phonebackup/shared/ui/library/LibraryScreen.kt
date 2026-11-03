@@ -70,7 +70,9 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.view_albums
 import io.github.raghavsatyadev.phonebackup.shared.resources.view_all
 import io.github.raghavsatyadev.phonebackup.shared.resources.view_categories
 import io.github.raghavsatyadev.phonebackup.shared.resources.view_events
-import io.github.raghavsatyadev.phonebackup.shared.ui.BackHandler
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -78,7 +80,12 @@ import org.jetbrains.compose.resources.stringResource
 fun LibraryRoute(viewModel: LibraryViewModel, onOpenSettings: () -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val onEvent = viewModel::onEvent
-  if (state.viewer != null || state.bucket != null) BackHandler { onEvent(LibraryEvent.Back) }
+  // Back closes the open photo or album before it leaves the Library tab.
+  NavigationBackHandler(
+    state = rememberNavigationEventState(NavigationEventInfo.None),
+    isBackEnabled = state.viewer != null || state.bucket != null,
+    onBackCompleted = { onEvent(LibraryEvent.Back) },
+  )
   val viewer = state.viewer
   if (viewer != null) {
     PhotoViewer(state, viewer, onEvent)
