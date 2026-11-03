@@ -61,4 +61,32 @@
   <string name="test_ok">Connected to %1$s. Photos are saved in %2$s</string>
   <string name="test_failed">Could not connect: %1$s</string>
   <string name="saved">Saved</string>
+  <!-- Library (photo viewer) -->
+  <string name="tab_share">Share</string>
+  <string name="tab_library">Library</string>
+  <string name="library_title">Library</string>
+  <string name="view_all">All</string>
+  <string name="view_albums">Albums</string>
+  <string name="view_categories">Categories</string>
+  <string name="view_events">Events</string>
+  <string name="hide_similar">Hide similar</string>
+  <string name="action_refresh">Refresh</string>
+  <string name="library_empty">No photos on the PC yet. Upload some from the Share tab.</string>
+  <string name="library_error">Could not load photos: %1$s</string>
+  <string name="action_retry">Retry</string>
+  <string name="bucket_count">%1$s photos</string>
+  <string name="no_category">Uncategorized</string>
+  <string name="similar_count">%1$s similar</string>
+  <string name="similar_shots">Similar shots</string>
+  <string name="best_shot">Best shot</string>
+  <string name="your_tags">Your tags</string>
+  <string name="ai_tags">AI tags</string>
+  <string name="text_in_photo">Text in photo</string>
+  <string name="video">Video</string>
+  <string name="action_previous">Previous</string>
+  <string name="action_next_photo">Next</string>
+  <string name="action_zoom_in">Zoom in</string>
+  <string name="action_zoom_out">Zoom out</string>
+  <string name="action_zoom_reset">Fit to screen</string>
+  <string name="action_info">Details</string>
 </resources>

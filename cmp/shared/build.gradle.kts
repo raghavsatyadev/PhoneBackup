@@ -17,12 +17,16 @@ kotlin {
     compilerOptions { jvmTarget.set(JvmTarget.JVM_21) }
     withHostTest {}
   }
+  jvm("desktop") { compilerOptions { jvmTarget.set(JvmTarget.JVM_21) } }
 
   sourceSets {
     commonMain.dependencies {
       implementation(libs.bundles.compose.mp)
       implementation(libs.bundles.lifecycle.mp)
       implementation(libs.coil.compose.mp)
+      implementation(libs.coil.network.ktor3)
+      implementation(libs.telephoto.zoomable)
+      implementation(libs.telephoto.flick)
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.kotlinx.collections.immutable)
       implementation(libs.kotlinx.datetime)
@@ -34,6 +38,12 @@ kotlin {
       implementation(libs.compose.activity)
       implementation(libs.androidx.exifinterface)
       implementation(libs.kotlinx.coroutines.android)
+    }
+    val desktopMain by getting {
+      dependencies {
+        implementation(libs.ktor.client.okhttp)
+        implementation(libs.kotlinx.coroutines.swing)
+      }
     }
     commonTest.dependencies { implementation(libs.kotlin.test) }
   }

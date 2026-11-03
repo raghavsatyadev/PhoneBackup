@@ -14,9 +14,14 @@ import kotlinx.coroutines.flow.update
 class PhotoInbox {
   private val _pending = MutableStateFlow<List<IncomingPhoto>>(emptyList())
   val pending: StateFlow<List<IncomingPhoto>> = _pending
+  private val _deliveries = MutableStateFlow(0)
+  /** Goes up by one on every delivery, so the UI can switch to the share screen. */
+  val deliveries: StateFlow<Int> = _deliveries
 
   fun deliver(photos: List<IncomingPhoto>) {
-    if (photos.isNotEmpty()) _pending.update { it + photos }
+    if (photos.isEmpty()) return
+    _pending.update { it + photos }
+    _deliveries.update { it + 1 }
   }
 
   fun drain(): List<IncomingPhoto> = _pending.getAndUpdate { emptyList() }

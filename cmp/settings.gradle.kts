@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PhoneBackupShare"
 
-include(":shared", ":androidApp")
+include(":shared", ":androidApp", ":desktopApp")
