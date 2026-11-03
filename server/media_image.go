@@ -45,8 +45,13 @@ func ffmpegPreview(path string, maxSide int, seek string) (image.Image, error) {
 	if seek != "" {
 		args = append(args, "-ss", seek)
 	}
-	scale := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease", maxSide, maxSide)
-	args = append(args, "-i", path, "-frames:v", "1", "-vf", scale, "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "3", "-")
+	args = append(args, "-i", path, "-frames:v", "1")
+	// ffmpeg 8+ joins HEIC tile grids with its own filter graph, and -vf on top of it
+	// fails ("Simple and complex filtering cannot be used together"). Shrink those in Go.
+	if !heicExts[strings.ToLower(filepath.Ext(path))] {
+		args = append(args, "-vf", fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease", maxSide, maxSide))
+	}
+	args = append(args, "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "3", "-")
 	out, err := runTool("ffmpeg", args...)
 	if err != nil {
 		return nil, err
@@ -55,7 +60,7 @@ func ffmpegPreview(path string, maxSide int, seek string) (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errBadImage, err)
 	}
-	return img, nil
+	return shrink(img, maxSide), nil
 }
 
 // videoPreview takes a frame from a third of the way in (past black intros).

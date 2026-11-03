@@ -33,7 +33,7 @@ func newUploadRequest(t *testing.T, token string, fields map[string]string, file
 }
 
 func TestUploadRejectsBadToken(t *testing.T) {
-	u := &UploadServer{Root: t.TempDir(), Token: "secret-token-123456"}
+	u := &UploadServer{Root: NewRootDir(t.TempDir()), Token: "secret-token-123456"}
 	for _, tok := range []string{"", "wrong"} {
 		rec := httptest.NewRecorder()
 		u.Handler().ServeHTTP(rec, newUploadRequest(t, tok, nil, "a.jpg", []byte("x")))
@@ -45,7 +45,7 @@ func TestUploadRejectsBadToken(t *testing.T) {
 
 func TestUploadStoresFileMetaAndMtime(t *testing.T) {
 	root := t.TempDir()
-	u := &UploadServer{Root: root, Token: "secret-token-123456"}
+	u := &UploadServer{Root: NewRootDir(root), Token: "secret-token-123456"}
 	taken := time.Date(2021, 7, 4, 10, 30, 0, 0, time.UTC)
 	fields := map[string]string{"album": "Goa Trip", "tags": "beach, family ,", "takenAt": taken.Format(time.RFC3339), "fileName": "IMG_1.jpg"}
 

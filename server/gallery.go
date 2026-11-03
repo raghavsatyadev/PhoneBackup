@@ -89,7 +89,7 @@ func (u *UploadServer) handleGalleryPhotos(w http.ResponseWriter, r *http.Reques
 		writeUploadJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return
 	}
-	writeUploadJSON(w, http.StatusOK, galleryResponse{Photos: galleryPhotos(u.Root)})
+	writeUploadJSON(w, http.StatusOK, galleryResponse{Photos: galleryPhotos(u.Root.Get())})
 }
 
 func (u *UploadServer) handleGalleryThumb(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +130,7 @@ func (u *UploadServer) photoFromQuery(w http.ResponseWriter, r *http.Request) (s
 		writeUploadJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET only"})
 		return "", false
 	}
-	path, err := resolvePhotoID(u.Root, r.URL.Query().Get("id"))
+	path, err := resolvePhotoID(u.Root.Get(), r.URL.Query().Get("id"))
 	switch {
 	case errors.Is(err, errBadPhotoID):
 		writeUploadJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})

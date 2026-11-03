@@ -48,7 +48,7 @@ COMMANDS:
   server [-port 9876]              Start Web Dashboard (default on http://localhost:9876)
          [-lan]                    Also open the dashboard to your local network (no login)
          [-upload-port 9877]       Photo upload API for the Android app (0 disables it)
-         [-upload-dir <folder>]    Where shared photos are saved (default: Pictures\PhoneBackup)
+         [-upload-dir <folder>]    Where shared photos are saved (default: chosen in the PC app, else D:\PhoneBackup)
          [-vision-model <name>]    Ollama vision model that captions and tags uploads (off by default)
          [-vision-url <url>]       Ollama address (default: http://127.0.0.1:11434)
   resume <path-or-file>            Resume backup from phonebackup_status.json (CLI + Web UI)
@@ -115,13 +115,14 @@ func handleServer(args []string) {
 	port := fs.Int("port", getPort(), "HTTP server port")
 	lan := fs.Bool("lan", false, "Open the Web Dashboard to your local network (default: this PC only)")
 	uploadPort := fs.Int("upload-port", 9877, "Photo upload API port for the Android app (0 disables it)")
-	uploadDir := fs.String("upload-dir", DefaultUploadRoot(), "Folder where photos shared from the Android app are saved")
+	uploadDir := fs.String("upload-dir", DefaultUploadRoot(), "Folder where photos shared from the Android app are saved (the PC app can change it)")
 	visionModel := fs.String("vision-model", "", "Ollama vision model that captions and tags uploaded photos (empty = off)")
 	visionURL := fs.String("vision-url", DefaultVisionURL, "Ollama server address for -vision-model")
 	_ = fs.Parse(args)
 
 	if *uploadPort > 0 {
-		startPhotoUploads(*uploadPort, *uploadDir, NewVisionWorker(*uploadDir, *visionURL, *visionModel), *port)
+		root := NewRootDir(*uploadDir)
+		startPhotoUploads(*uploadPort, root, NewVisionWorker(root, *visionURL, *visionModel), *port)
 	}
 
 	// Auto-detect and register phonebackup_status.json if present in current directory

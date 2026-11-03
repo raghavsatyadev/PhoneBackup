@@ -59,13 +59,13 @@ type groupsDoc struct {
 
 // GroupIndex rebuilds groups.json in the background, a little after uploads stop.
 type GroupIndex struct {
-	Root  string
+	Root  *RootDir
 	mu    sync.Mutex
 	timer *time.Timer
 	run   sync.Mutex
 }
 
-func NewGroupIndex(root string) *GroupIndex { return &GroupIndex{Root: root} }
+func NewGroupIndex(root *RootDir) *GroupIndex { return &GroupIndex{Root: root} }
 
 // Schedule rebuilds after 20 s without new uploads.
 func (g *GroupIndex) Schedule() {
@@ -84,21 +84,23 @@ func (g *GroupIndex) Schedule() {
 func (g *GroupIndex) Rebuild() (groups []PhotoGroup, photos int, err error) {
 	g.run.Lock()
 	defer g.run.Unlock()
-	lib := scanLibrary(g.Root)
-	feats := loadFeatures(g.Root)
+	root := g.Root.Get()
+	lib := scanLibrary(root)
+	feats := loadFeatures(root)
 	for _, p := range lib {
 		if p.IsVideo() {
 			continue
 		}
 		f, ok := feats[p.ID()]
-		if ok && f.Size == p.Size && f.ModTime.Equal(p.ModTime) {
+		// Failed reads are retried: they are usually a missing or broken ffmpeg, now fixed.
+		if ok && f.Error == "" && f.Size == p.Size && f.ModTime.Equal(p.ModTime) {
 			continue
 		}
 		feats[p.ID()] = computeFeatures(p)
 	}
-	saveFeatures(g.Root, feats, lib)
+	saveFeatures(root, feats, lib)
 	groups = groupPhotos(lib, feats)
-	err = writeJSONAtomic(filepath.Join(g.Root, sidecarDirName, groupsFile), groupsDoc{time.Now(), groups})
+	err = writeJSONAtomic(filepath.Join(root, sidecarDirName, groupsFile), groupsDoc{time.Now(), groups})
 	return groups, len(lib), err
 }
 
@@ -314,7 +316,7 @@ func handleGroup(args []string) {
 	fs := flag.NewFlagSet("group", flag.ExitOnError)
 	dir := fs.String("dir", DefaultUploadRoot(), "Upload folder")
 	fs.Parse(args)
-	groups, n, err := NewGroupIndex(*dir).Rebuild()
+	groups, n, err := NewGroupIndex(NewRootDir(*dir)).Rebuild()
 	if err != nil {
 		fmt.Printf("⚠️  Cannot save groups: %v\n", err)
 		return

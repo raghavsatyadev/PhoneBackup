@@ -121,4 +121,12 @@
   <string name="pair_failed">Could not reach the PC: %1$s</string>
   <string name="action_try_again">Try again</string>
   <string name="action_done">Done</string>
+  <string name="folder_title">Photo folder</string>
+  <string name="folder_intro">Where this PC saves photos sent from phones. Photos already saved stay in the old folder.</string>
+  <string name="folder_label">Folder on this PC</string>
+  <string name="action_browse">Browse…</string>
+  <string name="action_change_folder">Use this folder</string>
+  <string name="folder_changed">New photos will be saved in %1$s</string>
+  <string name="folder_remote">This PC saves photos in %1$s. It can only be changed in the PhoneBackup app on that PC.</string>
+  <string name="folder_failed">Could not change the folder: %1$s</string>
 </resources>

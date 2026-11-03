@@ -1,0 +1,15 @@
+<!-- Same art as the Android launcher icon (androidApp res/drawable/ic_launcher_*.xml). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="10 10 88 88">
+  <defs><clipPath id="r"><rect x="10" y="10" width="88" height="88" rx="20"/></clipPath></defs>
+  <g clip-path="url(#r)">
+    <path fill="#1565C0" d="M0,0h108v108h-108z"/>
+    <path fill="#1E88E5" d="M0,0H108V44L0,84Z"/>
+    <path fill="#FFFFFF" d="M38,26h20a4,4 0,0 1,4 4v48a4,4 0,0 1,-4 4h-20a4,4 0,0 1,-4 -4v-48a4,4 0,0 1,4 -4z"/>
+    <path fill="#B3E5FC" d="M37,32h22v42h-22z"/>
+    <path fill="#FFB300" d="M50,40a3.5,3.5 0,1 0,7 0a3.5,3.5 0,1 0,-7 0z"/>
+    <path fill="#2E7D32" d="M37,74L45,59L50,66L54,61L59,68V74Z"/>
+    <path fill="#FFFFFF" d="M53,70a13,13 0,1 0,26 0a13,13 0,1 0,-26 0z"/>
+    <path fill="#FF6D00" d="M55.5,70a10.5,10.5 0,1 0,21 0a10.5,10.5 0,1 0,-21 0z"/>
+    <path fill="#FFFFFF" d="M66,62.5l-6.5,6.5h4.5v7.5h4v-7.5h4.5z"/>
+  </g>
+</svg>

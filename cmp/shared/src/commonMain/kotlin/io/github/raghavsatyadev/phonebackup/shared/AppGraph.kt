@@ -22,6 +22,11 @@ class AppGraph(
   val settings: SettingsStore,
   discovery: ServerDiscovery = NoDiscovery,
   val deviceName: String = "",
+  /**
+   * Opens a folder chooser (starting at the given path) and returns the pick, or null. Only the
+   * desktop app passes one: changing where the PC saves photos is never offered on the phone.
+   */
+  val pickFolder: (suspend (String) -> String?)? = null,
 ) {
   private val http = createHttpClient()
   /** App-wide scope: work here outlives any screen. */

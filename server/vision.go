@@ -40,13 +40,13 @@ type visionJob struct{ albumDir, fileName string }
 
 // VisionWorker analyses photos one at a time (the GPU is the bottleneck).
 type VisionWorker struct {
-	Root   string
+	Root   *RootDir
 	Client *OllamaVision
 	queue  chan visionJob
 }
 
 // NewVisionWorker returns nil when model is empty, which turns the feature off.
-func NewVisionWorker(root, url, model string) *VisionWorker {
+func NewVisionWorker(root *RootDir, url, model string) *VisionWorker {
 	if model == "" {
 		return nil
 	}
@@ -81,7 +81,7 @@ func (v *VisionWorker) process(job visionJob) {
 	if !needsVision(out) {
 		return // already analysed
 	}
-	hint := readPhotoHint(v.Root, job.albumDir, job.fileName)
+	hint := readPhotoHint(filepath.Dir(job.albumDir), job.albumDir, job.fileName)
 	meta, err := v.Client.Analyze(filepath.Join(job.albumDir, job.fileName), hint)
 	if err != nil && !errors.Is(err, errUnsupported) && !errors.Is(err, errBadImage) {
 		// Model or server problem: leave no file so a later start retries.
@@ -99,7 +99,8 @@ func (v *VisionWorker) process(job visionJob) {
 
 // backfill queues every uploaded photo (one with a sidecar) that has no vision result.
 func (v *VisionWorker) backfill() {
-	albums, err := os.ReadDir(v.Root)
+	root := v.Root.Get()
+	albums, err := os.ReadDir(root)
 	if err != nil {
 		return
 	}
@@ -107,7 +108,7 @@ func (v *VisionWorker) backfill() {
 		if !a.IsDir() {
 			continue
 		}
-		albumDir := filepath.Join(v.Root, a.Name())
+		albumDir := filepath.Join(root, a.Name())
 		entries, _ := os.ReadDir(filepath.Join(albumDir, sidecarDirName))
 		for _, e := range entries {
 			name := e.Name()

@@ -84,7 +84,7 @@ func TestGroupingFindsBurstAndPicksSharpest(t *testing.T) {
 	os.MkdirAll(filepath.Join(root, organizedDirName, "Festival"), 0o755)
 	os.Link(filepath.Join(root, "Diwali", "c_other.jpg"), filepath.Join(root, organizedDirName, "Festival", "c_other.jpg"))
 
-	groups, n, err := NewGroupIndex(root).Rebuild()
+	groups, n, err := NewGroupIndex(NewRootDir(root)).Rebuild()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestGroupingFindsBurstAndPicksSharpest(t *testing.T) {
 func TestGalleryEndpoints(t *testing.T) {
 	root := t.TempDir()
 	addPhoto(t, root, "Trip", "p.jpg", scene(5, 0, false), time.Now())
-	u := &UploadServer{Root: root, Token: "secret-token-123456"}
+	u := &UploadServer{Root: NewRootDir(root), Token: "secret-token-123456"}
 	srv := httptest.NewServer(u.Handler())
 	defer srv.Close()
 	get := func(path string, auth bool) *http.Response {

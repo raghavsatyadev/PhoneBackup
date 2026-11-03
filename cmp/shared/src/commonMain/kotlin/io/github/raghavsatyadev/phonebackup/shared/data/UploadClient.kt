@@ -7,10 +7,14 @@ import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -25,6 +29,9 @@ import kotlinx.serialization.json.Json
 data class PingResponse(val ok: Boolean = false, val host: String = "", val id: String = "", val uploadRoot: String = "")
 
 @Serializable
+data class FolderInfo(val path: String = "", val canChange: Boolean = false)
+
+@Serializable
 data class UploadResponse(val fileName: String = "", val album: String = "", val skipped: Boolean = false, val size: Long = 0)
 
 class UploadException(message: String) : Exception(message)
@@ -36,6 +43,23 @@ class UploadClient(private val http: HttpClient) {
   suspend fun ping(config: ServerConfig): PingResponse {
     val res = http.get("${config.baseUrl}/api/upload/ping") { auth(config) }
     return json.decodeFromString(PingResponse.serializer(), res.checked())
+  }
+
+  /** Where the PC saves photos, and whether this caller (an app on that PC) may change it. */
+  suspend fun folder(config: ServerConfig): FolderInfo {
+    val res = http.get("${config.baseUrl}/api/upload/folder") { auth(config) }
+    return json.decodeFromString(FolderInfo.serializer(), res.checked())
+  }
+
+  /** Changes the photo folder; the PC refuses unless the request comes from the PC itself. */
+  suspend fun setFolder(config: ServerConfig, path: String): FolderInfo {
+    val res =
+      http.post("${config.baseUrl}/api/upload/folder") {
+        auth(config)
+        contentType(ContentType.Application.Json)
+        setBody(json.encodeToString(mapOf("path" to path)))
+      }
+    return json.decodeFromString(FolderInfo.serializer(), res.checked())
   }
 
   /** Streams one file from disk; [onProgress] gets (bytesSent, totalBytes). */

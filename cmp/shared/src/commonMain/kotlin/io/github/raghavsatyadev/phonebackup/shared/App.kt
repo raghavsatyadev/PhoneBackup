@@ -45,6 +45,8 @@ import io.github.raghavsatyadev.phonebackup.shared.ui.servers.PairRoute
 import io.github.raghavsatyadev.phonebackup.shared.ui.servers.PairViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.servers.ServersRoute
 import io.github.raghavsatyadev.phonebackup.shared.ui.servers.ServersViewModel
+import io.github.raghavsatyadev.phonebackup.shared.ui.settings.FolderRoute
+import io.github.raghavsatyadev.phonebackup.shared.ui.settings.FolderViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.settings.SettingsRoute
 import io.github.raghavsatyadev.phonebackup.shared.ui.settings.SettingsViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.share.ShareRoute
@@ -142,6 +144,12 @@ private fun EntryProviderScope<NavKey>.serverEntries(graph: AppGraph, backStack:
       isNew = key.localId == null,
       onBack = back,
       onPair = { address, name -> backStack.open(PairKey(address, name)) },
+      extra = {
+        val pick = graph.pickFolder
+        if (pick != null && key.localId != null) {
+          FolderRoute(viewModel { FolderViewModel(graph.settings, graph.uploads, key.localId, pick) })
+        }
+      },
     )
   }
   entry<PairKey> { key ->

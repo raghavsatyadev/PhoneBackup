@@ -52,20 +52,11 @@ type uploadResult struct {
 
 // UploadServer holds the upload root and the shared secret.
 type UploadServer struct {
-	Root   string
+	Root   *RootDir
 	Token  string
 	Vision *VisionWorker // nil when vision tagging is off
 	Groups *GroupIndex   // nil in tests; rebuilds similar-photo groups after uploads
 	Pairs  *PairBook     // nil turns pairing off
-}
-
-// DefaultUploadRoot is <Pictures>/PhoneBackup.
-func DefaultUploadRoot() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "PhoneBackupUploads"
-	}
-	return filepath.Join(home, "Pictures", "PhoneBackup")
 }
 
 // LoadOrCreateUploadToken keeps one random token per machine under the user config dir.
@@ -96,6 +87,7 @@ func (u *UploadServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/upload/ping", u.auth(u.handlePing))
 	mux.HandleFunc("/api/upload", u.auth(u.handleUpload))
+	mux.HandleFunc("/api/upload/folder", u.auth(u.handleFolder))
 	u.registerGallery(mux)
 	if u.Pairs != nil {
 		u.Pairs.registerPhone(mux)
@@ -104,7 +96,7 @@ func (u *UploadServer) Handler() http.Handler {
 }
 
 // StartUploadServer listens on all interfaces so phones on the LAN can reach it.
-func StartUploadServer(port int, root, token string, vision *VisionWorker, pairBook *PairBook) {
+func StartUploadServer(port int, root *RootDir, token string, vision *VisionWorker, pairBook *PairBook) {
 	u := &UploadServer{Root: root, Token: token, Vision: vision, Groups: NewGroupIndex(root), Pairs: pairBook}
 	go u.Groups.Rebuild()
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: u.Handler(), ReadHeaderTimeout: 15 * time.Second}
@@ -117,7 +109,7 @@ func StartUploadServer(port int, root, token string, vision *VisionWorker, pairB
 
 // startPhotoUploads loads the token, starts the listener and prints what to type into the app.
 // dashboardPort is where the phone gets allowed (printed with each pairing request).
-func startPhotoUploads(port int, root string, vision *VisionWorker, dashboardPort int) {
+func startPhotoUploads(port int, root *RootDir, vision *VisionWorker, dashboardPort int) {
 	token, tokenPath, err := LoadOrCreateUploadToken()
 	if err != nil {
 		fmt.Printf("⚠️  Photo uploads disabled: cannot create token: %v\n", err)
@@ -132,7 +124,7 @@ func startPhotoUploads(port int, root string, vision *VisionWorker, dashboardPor
 		fmt.Printf("     Server address: http://%s:%d\n", ip, port)
 	}
 	fmt.Printf("     Token:          %s   (stored in %s)\n", token, tokenPath)
-	fmt.Printf("     Saving to:      %s\n", root)
+	fmt.Printf("     Saving to:      %s   (change it in the PC app)\n", root.Get())
 	if vision != nil {
 		vision.Start()
 		fmt.Printf("     Vision tagging: %s at %s\n", vision.Client.Model, vision.Client.URL)
@@ -173,7 +165,7 @@ func (u *UploadServer) auth(next http.HandlerFunc) http.HandlerFunc {
 
 func (u *UploadServer) handlePing(w http.ResponseWriter, r *http.Request) {
 	host, _ := os.Hostname()
-	writeUploadJSON(w, http.StatusOK, map[string]any{"ok": true, "host": host, "id": serverIDOrEmpty(), "uploadRoot": u.Root})
+	writeUploadJSON(w, http.StatusOK, map[string]any{"ok": true, "host": host, "id": serverIDOrEmpty(), "uploadRoot": u.Root.Get(), "canChangeFolder": fromSameMachine(r)})
 }
 
 func (u *UploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {
@@ -207,12 +199,13 @@ func (u *UploadServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 		if meta.OriginalName == "" {
 			meta.OriginalName = part.FileName()
 		}
-		res, serr := u.store(part, &meta)
+		root := u.Root.Get()
+		res, serr := u.store(root, part, &meta)
 		if serr != nil {
 			writeUploadJSON(w, http.StatusInternalServerError, map[string]string{"error": serr.Error()})
 			return
 		}
-		u.Vision.Enqueue(filepath.Join(u.Root, res.Album), res.FileName)
+		u.Vision.Enqueue(filepath.Join(root, res.Album), res.FileName)
 		u.Groups.Schedule()
 		writeUploadJSON(w, http.StatusOK, res)
 		return
@@ -240,10 +233,10 @@ func applyUploadField(m *PhotoMeta, name, value string) {
 }
 
 // store streams the file into the album folder, never overwriting a different file.
-func (u *UploadServer) store(src io.Reader, m *PhotoMeta) (uploadResult, error) {
+func (u *UploadServer) store(root string, src io.Reader, m *PhotoMeta) (uploadResult, error) {
 	m.Album = sanitizeName(m.Album, defaultAlbumName)
 	name := sanitizeName(m.OriginalName, "photo")
-	albumDir := filepath.Join(u.Root, m.Album)
+	albumDir := filepath.Join(root, m.Album)
 	if err := os.MkdirAll(albumDir, 0o755); err != nil {
 		return uploadResult{}, err
 	}

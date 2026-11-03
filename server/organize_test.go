@@ -29,7 +29,7 @@ func TestCategoryPromptAndSchema(t *testing.T) {
 	root, albumDir := newAlbum(t, "d.png", 30, 30)
 	taken := time.Date(2025, 10, 21, 19, 0, 0, 0, time.UTC)
 	writeSidecar(albumDir, &PhotoMeta{FileName: "d.png", Album: "Trip", TakenAt: taken})
-	NewVisionWorker(root, srv.URL, "m").process(visionJob{albumDir, "d.png"})
+	NewVisionWorker(NewRootDir(root), srv.URL, "m").process(visionJob{albumDir, "d.png"})
 
 	for _, want := range []string{"Festival:", "Baby:", "Navratri", "21 October 2025", `album named "Trip"`} {
 		if !strings.Contains(gotPrompt, want) {

@@ -75,7 +75,13 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun SettingsRoute(viewModel: SettingsViewModel, isNew: Boolean, onBack: () -> Unit, onPair: (address: String, name: String) -> Unit) {
+fun SettingsRoute(
+  viewModel: SettingsViewModel,
+  isNew: Boolean,
+  onBack: () -> Unit,
+  onPair: (address: String, name: String) -> Unit,
+  extra: @Composable () -> Unit = {},
+) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   SettingsScreen(
     state = state,
@@ -86,6 +92,7 @@ fun SettingsRoute(viewModel: SettingsViewModel, isNew: Boolean, onBack: () -> Un
       val saved = viewModel.save()
       onPair(saved.address, saved.label)
     },
+    extra = extra,
   )
 }
 
@@ -96,6 +103,8 @@ fun SettingsScreen(
   onEvent: (SettingsEvent) -> Unit,
   onBack: () -> Unit,
   onPair: () -> Unit,
+  /** More settings under the form (the desktop app's photo folder). */
+  extra: @Composable () -> Unit = {},
 ) {
   Scaffold(
     modifier = Modifier.imePadding(),
@@ -186,6 +195,7 @@ fun SettingsScreen(
         Text(stringResource(if (state.saved) Res.string.saved else Res.string.action_save))
       }
       TestResultView(state.test)
+      extra()
     }
   }
 }

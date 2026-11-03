@@ -81,7 +81,7 @@ func TestVisionProcessWritesSeparateFileAndShrinks(t *testing.T) {
 	srv := fakeOllama(t, "```json\n{\"caption\":\"A beach.\",\"tags\":[\"Beach\",\"sea\",\"beach\"],\"text\":\"\"}\n```", &side)
 	defer srv.Close()
 	root, albumDir := newAlbum(t, "big.png", 3000, 1500)
-	v := NewVisionWorker(root, srv.URL, "test-vl")
+	v := NewVisionWorker(NewRootDir(root), srv.URL, "test-vl")
 	v.process(visionJob{albumDir, "big.png"})
 
 	m, ok := readVision(t, albumDir, "big.png")
@@ -104,7 +104,7 @@ func TestVisionUnsupportedIsRecorded(t *testing.T) {
 	srv := fakeOllama(t, "{}", nil)
 	defer srv.Close()
 	root, albumDir := newAlbum(t, "notes.pdf", 0, 0)
-	NewVisionWorker(root, srv.URL, "m").process(visionJob{albumDir, "notes.pdf"})
+	NewVisionWorker(NewRootDir(root), srv.URL, "m").process(visionJob{albumDir, "notes.pdf"})
 	if m, ok := readVision(t, albumDir, "notes.pdf"); !ok || m.Error == "" {
 		t.Fatalf("want an error result for a PDF, got %+v ok=%v", m, ok)
 	}
@@ -129,7 +129,7 @@ func TestVisionServerDownLeavesNoFile(t *testing.T) {
 	srv := fakeOllama(t, "{}", nil)
 	srv.Close() // nothing listening
 	root, albumDir := newAlbum(t, "a.png", 50, 50)
-	NewVisionWorker(root, srv.URL, "m").process(visionJob{albumDir, "a.png"})
+	NewVisionWorker(NewRootDir(root), srv.URL, "m").process(visionJob{albumDir, "a.png"})
 	if _, ok := readVision(t, albumDir, "a.png"); ok {
 		t.Fatal("a transient failure must not write a result, so the next start retries")
 	}
@@ -139,7 +139,7 @@ func TestVisionBackfillAndUploadRetryKeepResult(t *testing.T) {
 	srv := fakeOllama(t, `{"caption":"Cat.","tags":["cat"],"text":""}`, nil)
 	defer srv.Close()
 	root, albumDir := newAlbum(t, "cat.png", 40, 40)
-	v := NewVisionWorker(root, srv.URL, "m")
+	v := NewVisionWorker(NewRootDir(root), srv.URL, "m")
 	v.Start()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
