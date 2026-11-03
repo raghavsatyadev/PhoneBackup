@@ -80,9 +80,11 @@ Photos are saved unchanged in `~/Pictures/PhoneBackup/<album>/` (change with `-u
 **AI captions and tags (optional).** Start the server with a local [Ollama](https://ollama.com) vision model and every uploaded photo gets a caption, tags and any readable text, saved to `<album>/.phonebackup/<file>.vision.json`. Your own tags are never changed. It runs in the background after each upload, and on start it also tags earlier uploads that have none yet. HEIC photos and videos need [ffmpeg](https://ffmpeg.org) on PATH: HEIC is converted, and a video is described from 3 frames (at 20%, 50% and 80% of its length; 1 frame for clips under 2 s, 5 for clips over a minute).
 
 ```bash
-ollama pull qwen3-vl:8b
-phonebackup server -vision-model qwen3-vl:8b
+ollama pull qwen3.6:35b-a3b
+phonebackup server -vision-model qwen3.6:35b-a3b
 ```
+
+`qwen3.6:35b-a3b` gave the best results on a 16 GB GPU (about 3 s per photo once loaded). On smaller GPUs use `qwen3-vl:8b`.
 
 Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
 
