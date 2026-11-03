@@ -13,8 +13,14 @@ import kotlinx.serialization.modules.polymorphic
 /** The Library tab: photos already on the PC. */
 @Serializable data object LibraryKey : NavKey
 
-/** Server address and token. */
-@Serializable data object SettingsKey : NavKey
+/** Saved PCs, PCs found on the network, and which one receives photos. */
+@Serializable data object ServersKey : NavKey
+
+/** Adds a PC by address ([localId] null) or edits a saved one. */
+@Serializable data class ServerEditKey(val localId: String? = null) : NavKey
+
+/** Asks the PC at [address] to allow this phone; the PC answers with the token. */
+@Serializable data class PairKey(val address: String, val name: String) : NavKey
 
 /** Saves the back stack on every platform: Nav3 needs each [NavKey] registered. */
 val NavConfig = SavedStateConfiguration {
@@ -22,7 +28,9 @@ val NavConfig = SavedStateConfiguration {
     polymorphic(NavKey::class) {
       subclass(ShareKey::class, ShareKey.serializer())
       subclass(LibraryKey::class, LibraryKey.serializer())
-      subclass(SettingsKey::class, SettingsKey.serializer())
+      subclass(ServersKey::class, ServersKey.serializer())
+      subclass(ServerEditKey::class, ServerEditKey.serializer())
+      subclass(PairKey::class, PairKey.serializer())
     }
   }
 }

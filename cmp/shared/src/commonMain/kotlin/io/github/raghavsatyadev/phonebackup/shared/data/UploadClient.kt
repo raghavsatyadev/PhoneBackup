@@ -21,7 +21,8 @@ import kotlinx.io.files.SystemFileSystem
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-@Serializable data class PingResponse(val ok: Boolean = false, val host: String = "", val uploadRoot: String = "")
+@Serializable
+data class PingResponse(val ok: Boolean = false, val host: String = "", val id: String = "", val uploadRoot: String = "")
 
 @Serializable
 data class UploadResponse(val fileName: String = "", val album: String = "", val skipped: Boolean = false, val size: Long = 0)

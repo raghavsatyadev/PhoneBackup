@@ -47,7 +47,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.raghavsatyadev.phonebackup.shared.resources.Res
+import io.github.raghavsatyadev.phonebackup.shared.resources.action_add_by_address
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_back
+import io.github.raghavsatyadev.phonebackup.shared.resources.action_pair
+import io.github.raghavsatyadev.phonebackup.shared.resources.ic_computer
+import io.github.raghavsatyadev.phonebackup.shared.resources.name_label
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_save
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_test
 import io.github.raghavsatyadev.phonebackup.shared.resources.address_label
@@ -71,18 +75,33 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun SettingsRoute(viewModel: SettingsViewModel, onBack: () -> Unit) {
+fun SettingsRoute(viewModel: SettingsViewModel, isNew: Boolean, onBack: () -> Unit, onPair: (address: String, name: String) -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
-  SettingsScreen(state = state, onEvent = viewModel::onEvent, onBack = onBack)
+  SettingsScreen(
+    state = state,
+    isNew = isNew,
+    onEvent = viewModel::onEvent,
+    onBack = onBack,
+    onPair = {
+      val saved = viewModel.save()
+      onPair(saved.address, saved.label)
+    },
+  )
 }
 
 @Composable
-fun SettingsScreen(state: SettingsUiState, onEvent: (SettingsEvent) -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(
+  state: SettingsUiState,
+  isNew: Boolean,
+  onEvent: (SettingsEvent) -> Unit,
+  onBack: () -> Unit,
+  onPair: () -> Unit,
+) {
   Scaffold(
     modifier = Modifier.imePadding(),
     topBar = {
       TopAppBar(
-        title = { Text(stringResource(Res.string.settings_title)) },
+        title = { Text(stringResource(if (isNew) Res.string.action_add_by_address else Res.string.settings_title)) },
         navigationIcon = {
           IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.ic_arrow_back), stringResource(Res.string.action_back))
@@ -99,6 +118,16 @@ fun SettingsScreen(state: SettingsUiState, onEvent: (SettingsEvent) -> Unit, onB
         stringResource(Res.string.settings_intro),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      OutlinedTextField(
+        value = state.name,
+        onValueChange = { onEvent(SettingsEvent.NameChanged(it)) },
+        label = { Text(stringResource(Res.string.name_label)) },
+        leadingIcon = { Icon(painterResource(Res.drawable.ic_computer), null) },
+        singleLine = true,
+        shape = MaterialTheme.shapes.medium,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+        modifier = Modifier.fillMaxWidth(),
       )
       OutlinedTextField(
         value = state.address,
@@ -123,6 +152,17 @@ fun SettingsScreen(state: SettingsUiState, onEvent: (SettingsEvent) -> Unit, onB
       )
       val height = ButtonDefaults.MediumContainerHeight
       Button(
+        onClick = onPair,
+        enabled = state.address.isNotBlank(),
+        shapes = ButtonDefaults.shapesFor(height),
+        contentPadding = ButtonDefaults.contentPaddingFor(height),
+        modifier = Modifier.fillMaxWidth().heightIn(min = height),
+      ) {
+        Icon(painterResource(Res.drawable.ic_key), null, Modifier.size(ButtonDefaults.iconSizeFor(height)))
+        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
+        Text(stringResource(Res.string.action_pair), style = ButtonDefaults.textStyleFor(height))
+      }
+      OutlinedButton(
         onClick = { onEvent(SettingsEvent.Test) },
         enabled = state.address.isNotBlank() && state.token.isNotBlank() && state.test != TestResult.Running,
         shapes = ButtonDefaults.shapesFor(height),

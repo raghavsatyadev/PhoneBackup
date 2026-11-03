@@ -51,10 +51,10 @@ data class ServerList(val servers: List<SavedServer> = emptyList(), val activeId
     val merged = server.copy(localId = replaced.localId)
     // When both the edited entry and another entry point at the same PC, keep one.
     val rest = servers.filterIndexed { i, s -> i == index || s.serverId.isBlank() || s.serverId != merged.serverId }
-    return copy(
-      servers = rest.map { if (it.localId == replaced.localId) merged else it },
-      activeId = if (activeId == server.localId) replaced.localId else activeId ?: replaced.localId,
-    )
+    val kept = rest.map { if (it.localId == replaced.localId) merged else it }
+    // The active entry may be the one just merged away: the merged entry takes its place.
+    val active = activeId?.takeIf { id -> kept.any { it.localId == id } } ?: replaced.localId
+    return copy(servers = kept, activeId = active)
   }
 
   fun remove(localId: String): ServerList {

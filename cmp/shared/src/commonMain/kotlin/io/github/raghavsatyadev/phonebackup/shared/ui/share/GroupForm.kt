@@ -165,7 +165,7 @@ private fun TonalAction(
 
 /** Overall progress and the screen's one main action, pinned below the list. */
 @Composable
-fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit) {
+fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit, onManagePcs: () -> Unit) {
   Surface(
     color = MaterialTheme.colorScheme.surfaceContainer,
     shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -185,8 +185,9 @@ fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit) {
           LinearProgressIndicator(progress = { progress }, strokeCap = StrokeCap.Round, modifier = Modifier.fillMaxWidth())
         }
       }
-      val height = ButtonDefaults.MediumContainerHeight
       val allDone = state.photos.isNotEmpty() && state.photos.all { it.isFinished }
+      if (!allDone) PcPicker(state, onEvent, onManagePcs)
+      val height = ButtonDefaults.MediumContainerHeight
       val retry = state.photos.any { it.status == UploadStatus.Failed }
       val (icon, label) =
         when {

@@ -16,6 +16,9 @@ sealed interface DateTarget {
   data class One(val id: String) : DateTarget
 }
 
+/** A paired PC photos can go to. */
+@Immutable data class PcChoice(val localId: String, val label: String)
+
 @Immutable
 data class ShareUiState(
   val photos: ImmutableList<PhotoItem> = persistentListOf(),
@@ -26,6 +29,9 @@ data class ShareUiState(
   /** 0..1 for the photo being sent right now. */
   val currentProgress: Float = 0f,
   val serverConfigured: Boolean = false,
+  /** Paired PCs for the "Send to" picker, and the one photos go to. */
+  val pcs: ImmutableList<PcChoice> = persistentListOf(),
+  val activePc: String? = null,
   val dateTarget: DateTarget? = null,
   /** Shared photos still being copied into the app; null when none are. */
   val copying: TransferProgress? = null,
@@ -52,6 +58,8 @@ sealed interface ShareEvent {
   data class DateChosen(val value: LocalDateTime) : ShareEvent
 
   data object Upload : ShareEvent
+
+  data class SelectPc(val localId: String) : ShareEvent
 
   data object CancelUpload : ShareEvent
 

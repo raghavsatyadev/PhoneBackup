@@ -120,7 +120,7 @@ fun ShareScreen(
     },
     modifier = Modifier.imePadding(),
     snackbarHost = { SnackbarHost(snackbar) },
-    bottomBar = { if (state.photos.isNotEmpty()) UploadBar(state, onEvent) },
+    bottomBar = { if (state.photos.isNotEmpty()) UploadBar(state, onEvent, onOpenSettings) },
   ) { padding ->
     // Photos are the point of the screen, so they get big tiles: two across on a phone, more on wider screens.
     LazyVerticalGrid(

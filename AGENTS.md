@@ -115,6 +115,7 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
 
 - **Auth:** `Authorization: Bearer <token>`. Token is random, created once by `LoadOrCreateUploadToken()` and stored at `os.UserConfigDir()/phonebackup/upload_token`; compared in constant time. The token and LAN addresses are printed in the console banner only.
 - **Discovery (`announce.go`):** announces mDNS `_phonebackup._tcp` on the upload port (zeroconf, LAN interfaces with a private IPv4). TXT: `id` (random, stable, `os.UserConfigDir()/phonebackup/server_id`), `name` (hostname), `v=1`. Never the token.
+- **Pairing (`pair.go`, `public/pair.js`):** the app `POST /api/pair/request {name}` on the upload port (no auth) and gets a private poll secret + 6-digit code; it polls `POST /api/pair/status {secret}` until `allowed` (returns the token), `denied` or `expired`. The dashboard lists `GET /api/pair/pending` and answers with `POST /api/pair/decide {id, allow}` (this PC only, `fromThisPC`), showing an "Allow this phone to connect?" dialog with the same code. The poll secret never goes to the dashboard or WS broadcasts. Tests: `pair_test.go`.
 - **Endpoints:**
   - `GET /api/upload/ping`: Returns `{ok, host, id, uploadRoot}` (the app's "Test connection").
   - `POST /api/upload`: Streaming multipart. Text fields `album`, `tags` (comma-separated), `takenAt` (RFC 3339), `fileName` must come before the `file` part.
@@ -136,12 +137,18 @@ Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gra
 - `shared/commonMain`: All UI and logic.
   - `data/UploadClient.kt` (Ktor, streams the file), `ServerConfig.kt`, `ShareQueue.kt` (app-wide photo list, copy-in and upload runs, `progress` for the notification), `PhotoDates.kt` (EXIF and filename date parsing), `LocalFiles.kt`.
   - `ui/share/`: Share screen (album, tags, per-photo or group date editing, upload with per-photo status/retry) with `ShareViewModel` (UDF: state + events + one-off messages).
-  - `ui/settings/`: PC address + token, test connection.
+  - `nav/`: Nav3 keys (`NavKeys.kt`, `NavConfig`); always use Nav3 for new screens. First run opens `ServersKey` over the root.
+  - `data/ServerList.kt`: several saved PCs (`SavedServer`, merged by server id or address) with one `activeId` that receives photos; stored as JSON in app settings (`SettingsStore`), migrated from the old single address. `ServerDiscovery.kt` (`found` flow, `NoDiscovery` on desktop), `PairClient.kt`.
+  - `ui/servers/`: PC list (`ServersScreen`: found on this Wi-Fi + saved, radio for the active PC) and `PairScreen`/`PairViewModel` (shows the code, polls, saves the token and activates the PC).
+  - `ui/settings/`: add or edit a PC by address (name, address, Pair, Test connection).
+  - `ui/share/PcPicker.kt`: "Send to" menu of paired PCs on the upload bar (locked while uploading).
   - `ui/library/`: Photo viewer over the gallery API. `LibraryViewModel` (views: All / Albums / Categories / Events, hide-similar shows only best shots), `LibraryScreen` grid, `PhotoViewer` (HorizontalPager swipe, Telephoto `zoomable` pinch/double-tap zoom; Image must use `ContentScale.Inside`; desktop gets prev/next/zoom buttons and arrow/Esc keys), `PhotoDetails`. `App` = Android (Share + Library tabs), `ViewerApp` = desktop (Library + Settings).
   - Share drafts: album and tags are saved through `SettingsStore.saveDraft` (Android prefs) and cleared once nothing is waiting; a date the user picks is written to the photo's `.meta` (`saveImportedDate`), so both survive Android killing the app.
   - Strings live in `composeResources/values/strings.xml`.
 - `shared/androidMain`: `AndroidPhotoImporter` copies shared URIs to `filesDir/incoming/<id>/` straight away (the URI grant ends with the activity) and detects the date: EXIF DateTimeOriginal → EXIF DateTime → MediaStore DATE_TAKEN → file name → file time → now. Saves `.meta` so the queue survives restarts. Local copies are deleted after upload. Also `AndroidSettingsStore`, OkHttp client, `BackHandler`.
-- `desktopApp/` + `shared/desktopMain`: Compose Desktop window running `ViewerApp`; `DesktopSettingsStore` keeps address and token in Java Preferences.
+- `androidApp/discovery/`: `NsdDiscovery` (NSD `_phonebackup._tcp`, IPv4, resolve with a 5 s timeout) searches only while the app is resumed and only after `LocalNetworkAccess` has the Android 17 `ACCESS_LOCAL_NETWORK` answer (asked once from `MainActivity`).
+- Launcher icon: adaptive vectors `res/drawable/ic_launcher_{background,foreground,monochrome}.xml` + `res/mipmap-anydpi/`. App name is `appName` in `gradle/libs.versions.toml`.
+- `desktopApp/` + `shared/desktopMain`: Compose Desktop window running `ViewerApp`; `DesktopSettingsStore` keeps the PC list in Java Preferences.
 - Emulator testing: `adb reverse tcp:9877 tcp:9877`, then use `127.0.0.1:9877` in the app.
 
 ---

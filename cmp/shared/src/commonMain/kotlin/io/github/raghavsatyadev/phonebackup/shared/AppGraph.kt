@@ -1,6 +1,10 @@
 package io.github.raghavsatyadev.phonebackup.shared
 
 import io.github.raghavsatyadev.phonebackup.shared.data.GalleryClient
+import io.github.raghavsatyadev.phonebackup.shared.data.NetworkServers
+import io.github.raghavsatyadev.phonebackup.shared.data.NoDiscovery
+import io.github.raghavsatyadev.phonebackup.shared.data.PairClient
+import io.github.raghavsatyadev.phonebackup.shared.data.ServerDiscovery
 import io.github.raghavsatyadev.phonebackup.shared.data.PhotoSender
 import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 import io.github.raghavsatyadev.phonebackup.shared.data.ShareDraft
@@ -13,12 +17,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
 /** Hand-wired app dependencies; one instance lives in the platform Application. */
-class AppGraph(val settings: SettingsStore) {
+/** [deviceName] is what the PC shows when this device asks to pair. */
+class AppGraph(
+  val settings: SettingsStore,
+  discovery: ServerDiscovery = NoDiscovery,
+  val deviceName: String = "",
+) {
   private val http = createHttpClient()
   /** App-wide scope: work here outlives any screen. */
   val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   val uploads = UploadClient(http)
   val gallery = GalleryClient(http)
+  val pairing = PairClient(http)
+  val network = NetworkServers(discovery, settings)
+  /** False on the desktop viewer: PCs are only added by address there. */
+  val canSearch = discovery !== NoDiscovery
   val queue by lazy {
     val sender = PhotoSender { config, photo, album, tags, onProgress ->
       uploads

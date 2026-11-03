@@ -53,7 +53,9 @@ class SettingsStore(private val kv: KeyValueStore) {
   val config: StateFlow<ServerConfig> = active.asStateFlow()
 
   fun update(change: (ServerList) -> ServerList) {
+    val before = list.value
     val next = list.updateAndGet(change)
+    if (next == before) return
     kv.put(mapOf(KEY_SERVERS to json.encodeToString(next)))
     active.value = next.active?.config ?: ServerConfig()
   }

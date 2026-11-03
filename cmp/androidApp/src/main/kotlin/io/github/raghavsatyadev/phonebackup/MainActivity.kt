@@ -17,6 +17,7 @@ import androidx.core.content.IntentCompat
 import io.github.raghavsatyadev.phonebackup.shared.App
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import io.github.raghavsatyadev.phonebackup.discovery.LocalNetworkAccess
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -30,10 +31,15 @@ class MainActivity : ComponentActivity() {
 
   private val notificationPermission = registerForActivityResult(RequestPermission()) {}
 
+  // Either answer lets the search start; it only runs when granted.
+  private val localNetworkPermission =
+    registerForActivityResult(RequestPermission()) { app.localNetwork.onAnswered() }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     askForNotificationsOnFirstTransfer()
+    askForLocalNetwork(firstStart = savedInstanceState == null)
     // On recreation the share was already imported; a relaunch from Recents replays the old intent.
     val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
     if (savedInstanceState == null && !fromHistory) handleShare(intent)
@@ -68,6 +74,16 @@ class MainActivity : ComponentActivity() {
   }
 
   /** Asks once per screen, when a copy or upload first starts, so the progress bar can show. */
+  /** Android 17+: asked once, so the app can find PCs without the system's device picker. */
+  private fun askForLocalNetwork(firstStart: Boolean) {
+    val access = app.localNetwork
+    if (!access.needed || access.granted() || !firstStart) {
+      access.onAnswered()
+      return
+    }
+    localNetworkPermission.launch(LocalNetworkAccess.PERMISSION)
+  }
+
   private fun askForNotificationsOnFirstTransfer() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
     lifecycleScope.launch {

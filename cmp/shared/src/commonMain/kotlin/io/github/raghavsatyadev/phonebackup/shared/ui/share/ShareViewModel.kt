@@ -35,13 +35,16 @@ class ShareViewModel(
     MutableStateFlow(settings.loadDraft().let { ShareUiState(album = it.album, tags = it.tags.toImmutableList()) })
 
   val state: StateFlow<ShareUiState> =
-    combine(form, queue.photos, queue.uploadProgress, queue.copyProgress, settings.config) { f, photos, upload, copy, config ->
+    combine(form, queue.photos, queue.uploadProgress, queue.copyProgress, settings.servers) { f, photos, upload, copy, list ->
+        val active = list.active
         f.copy(
           photos = photos,
           copying = copy,
           isUploading = upload != null,
           currentProgress = upload?.fileFraction ?: 0f,
-          serverConfigured = config.isComplete,
+          serverConfigured = active?.config?.isComplete == true,
+          pcs = list.servers.filter { it.config.isComplete }.map { PcChoice(it.localId, it.label) }.toImmutableList(),
+          activePc = active?.localId,
         )
       }
       .stateIn(viewModelScope, SharingStarted.Eagerly, form.value.copy(photos = queue.photos.value))
@@ -82,6 +85,7 @@ class ShareViewModel(
       ShareEvent.DismissDateEdit -> form.update { it.copy(dateTarget = null) }
       is ShareEvent.DateChosen -> applyDate(event)
       ShareEvent.Upload -> upload()
+      is ShareEvent.SelectPc -> if (!state.value.isUploading) settings.update { it.activate(event.localId) }
       ShareEvent.CancelUpload -> queue.cancel()
       ShareEvent.ClearFinished -> queue.clearFinished()
     }

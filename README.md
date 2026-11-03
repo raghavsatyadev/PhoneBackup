@@ -70,12 +70,13 @@ The dashboard only answers on this PC. To open it from another device on your ne
 ```
 
 ### 4. Share Photos from Your Phone (Android app)
-The `cmp/` folder holds **PhoneBackup Share**, an Android app that sends photos to your PC over Wi-Fi.
+The `cmp/` folder holds the **PhoneBackup** app, an Android app that sends photos to your PC over Wi-Fi.
 
-1. Start the server (`phonebackup server`). It prints the PC address (e.g. `http://192.168.1.20:9877`) and an upload token. Allow it through the firewall on first run.
+1. Start the server (`phonebackup server`) and open the dashboard. Allow it through the firewall on first run.
 2. Build and install the app: `cd cmp && ./gradlew :androidApp:installDebug`.
-3. In the app, enter the address and token, then tap **Test connection**.
-4. Share photos to **PhoneBackup Share** from any app (or pick them in the app). Set an album name and tags, check or edit the dates, and tap **Upload to PC**.
+3. Open the app and allow it to find devices on your network. Your PC shows up under **On this Wi-Fi**; tap **Pair**. The phone and the dashboard show the same 6-digit code: click **Allow** on the PC. If the PC isn't found, use **Add by address** (e.g. `192.168.1.20:9877`).
+4. You can pair several PCs; the selected one gets the photos. Switch it from **Send to** on the share screen.
+5. Share photos to **PhoneBackup** (Send to PC) from any app (or pick them in the app). Set an album name and tags, check or edit the dates, and tap **Upload to PC**.
 
 Photos are saved unchanged in `~/Pictures/PhoneBackup/<album>/` (change with `-upload-dir`). Each file's modified time is set to the photo's date, and tags and dates are stored in `<album>/.phonebackup/<file>.json`.
 
@@ -107,7 +108,7 @@ The first command only prints the plan. `-apply` builds `_Organized\<Category>\<
 
 Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
 
-**Photo viewer.** The Android app's Library tab and the desktop viewer browse everything on the PC by album, category or event. Swipe (or use the arrow buttons and keys on desktop) for next and previous, pinch or double-tap (or the zoom buttons) to zoom, and open details for the caption and tags. Run the desktop viewer with `cd cmp; ./gradlew :desktopApp:run`, then enter the PC address and upload token in Settings.
+**Photo viewer.** The Android app's Library tab and the desktop viewer browse everything on the PC by album, category or event. Swipe (or use the arrow buttons and keys on desktop) for next and previous, pinch or double-tap (or the zoom buttons) to zoom, and open details for the caption and tags. Run the desktop viewer with `cd cmp; ./gradlew :desktopApp:run`, then add and pair the PC from Settings.
 
 **Similar photos.** Bursts and retakes are grouped automatically (on start, and shortly after uploads stop), and the sharpest, best-exposed shot of each group is picked. The viewer shows only that one, with a badge for the rest. To see the groups in the console, run `phonebackup group`. Eyes-open is not checked yet.
 

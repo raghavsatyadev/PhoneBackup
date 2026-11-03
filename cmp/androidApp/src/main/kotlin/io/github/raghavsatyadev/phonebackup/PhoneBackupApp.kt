@@ -3,7 +3,12 @@ package io.github.raghavsatyadev.phonebackup
 import android.app.Activity
 import android.app.Application
 import android.net.Uri
+import android.net.nsd.NsdManager
+import android.os.Build
+import android.provider.Settings
 import android.os.Bundle
+import io.github.raghavsatyadev.phonebackup.discovery.LocalNetworkAccess
+import io.github.raghavsatyadev.phonebackup.discovery.NsdDiscovery
 import io.github.raghavsatyadev.phonebackup.shared.AppGraph
 import io.github.raghavsatyadev.phonebackup.shared.data.AndroidPhotoImporter
 import io.github.raghavsatyadev.phonebackup.shared.data.AndroidKeyValueStore
@@ -18,12 +23,21 @@ class PhoneBackupApp : Application() {
   lateinit var graph: AppGraph
     private set
 
+  lateinit var localNetwork: LocalNetworkAccess
+    private set
+
   private lateinit var importer: AndroidPhotoImporter
   private var startedActivities = 0
 
   override fun onCreate() {
     super.onCreate()
-    graph = AppGraph(SettingsStore(AndroidKeyValueStore(this)))
+    localNetwork = LocalNetworkAccess(this)
+    graph =
+      AppGraph(
+        settings = SettingsStore(AndroidKeyValueStore(this)),
+        discovery = NsdDiscovery(getSystemService(NsdManager::class.java), localNetwork),
+        deviceName = deviceName(),
+      )
     importer = AndroidPhotoImporter(this)
     TransferNotifications.createChannels(this)
     registerActivityLifecycleCallbacks(VisibilityTracker())
@@ -42,6 +56,10 @@ class PhoneBackupApp : Application() {
       queue.summaries.collect { if (startedActivities == 0) TransferNotifications.postSummary(this@PhoneBackupApp, it) }
     }
   }
+
+  /** The name the user gave the phone (shown on the PC when pairing), else the model. */
+  private fun deviceName(): String =
+    Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)?.takeIf { it.isNotBlank() } ?: Build.MODEL
 
   fun importPhotos(uris: List<Uri>) {
     if (uris.isEmpty()) return

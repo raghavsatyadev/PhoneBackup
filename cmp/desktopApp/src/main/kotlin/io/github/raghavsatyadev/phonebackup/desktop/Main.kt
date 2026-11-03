@@ -11,11 +11,12 @@ import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 
 /** PhoneBackup Viewer: browse the photos on the PhoneBackup server from a desktop window. */
 fun main() {
-  val graph = AppGraph(SettingsStore(DesktopKeyValueStore()))
+  val host = runCatching { java.net.InetAddress.getLocalHost().hostName }.getOrNull() ?: System.getProperty("user.name").orEmpty()
+  val graph = AppGraph(SettingsStore(DesktopKeyValueStore()), deviceName = host)
   application {
     Window(
       onCloseRequest = ::exitApplication,
-      title = "PhoneBackup Viewer",
+      title = "PhoneBackup",
       state = rememberWindowState(width = 1280.dp, height = 860.dp),
     ) {
       ViewerApp(graph)

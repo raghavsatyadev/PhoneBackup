@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_title">PhoneBackup Share</string>
-  <string name="settings_title">PC connection</string>
+  <string name="app_title">PhoneBackup</string>
+  <string name="settings_title">Edit PC</string>
   <string name="action_settings">Settings</string>
   <string name="action_back">Back</string>
 
   <!-- Share screen -->
   <string name="empty_title">No photos yet</string>
   <string name="copying_photos">Getting photos ready: %1$d of %2$d</string>
-  <string name="empty_body">Share photos to PhoneBackup Share from Gallery, Photos, WhatsApp or any app, or pick them here.</string>
+  <string name="empty_body">Share photos to PhoneBackup from Gallery, Photos, WhatsApp or any app, or pick them here.</string>
   <string name="action_pick_photos">Pick photos</string>
   <string name="action_add_more">Add more</string>
   <string name="photo_count">%1$s photos</string>
@@ -25,8 +25,8 @@
   <string name="action_clear_finished">Clear uploaded</string>
   <string name="remove_photo">Remove photo</string>
   <string name="edit_date">Edit date</string>
-  <string name="setup_needed">Connect to your PC first: open Settings and enter the address and token the PhoneBackup server prints.</string>
-  <string name="action_open_settings">Open settings</string>
+  <string name="setup_needed">Connect to your PC first: run "phonebackup server" on it, then pick it under PCs.</string>
+  <string name="action_open_settings">Choose PC</string>
   <string name="msg_upload_done">Uploaded %1$s photos.</string>
   <string name="msg_upload_cancelled">Upload stopped after %1$s photos. The rest are still waiting.</string>
   <string name="msg_upload_partial">%1$s photos failed. Check the PC connection, then retry.</string>
@@ -53,7 +53,7 @@
   <string name="action_cancel">Cancel</string>
 
   <!-- Settings -->
-  <string name="settings_intro">Run "phonebackup server" on your PC. It prints the address to use here and the upload token.</string>
+  <string name="settings_intro">Type the address the PhoneBackup server prints. Tap Pair to get the token from the PC, or paste the token if you have it.</string>
   <string name="address_label">PC address</string>
   <string name="address_placeholder">192.168.1.20:9877</string>
   <string name="token_label">Upload token</string>
@@ -91,4 +91,34 @@
   <string name="action_zoom_out">Zoom out</string>
   <string name="action_zoom_reset">Fit to screen</string>
   <string name="action_info">Details</string>
+  <!-- PCs -->
+  <string name="servers_title">PCs</string>
+  <string name="servers_found">On this Wi-Fi</string>
+  <string name="servers_searching">Looking for PCs running PhoneBackup…</string>
+  <string name="servers_none_found">No PC found yet. Start "phonebackup server" on the PC, or add it by address.</string>
+  <string name="servers_saved">Your PCs</string>
+  <string name="servers_none_saved">No PC added yet.</string>
+  <string name="servers_active">Photos go here</string>
+  <string name="servers_needs_pairing">Not paired yet</string>
+  <string name="servers_paired">Paired</string>
+  <string name="action_pair">Pair</string>
+  <string name="action_add_by_address">Add by address</string>
+  <string name="action_edit">Edit</string>
+  <string name="action_remove">Remove</string>
+  <string name="action_manage_pcs">Manage PCs</string>
+  <string name="name_label">Name (optional)</string>
+  <string name="send_to">Send to</string>
+  <string name="no_pc">No PC</string>
+  <!-- Pairing -->
+  <string name="pair_title">Pair with %1$s</string>
+  <string name="pair_asking">Asking the PC…</string>
+  <string name="pair_check_code">On the PC, check that the PhoneBackup dashboard shows this code, then click Allow.</string>
+  <string name="pair_waiting">Waiting for the PC to allow this phone…</string>
+  <string name="pair_dashboard_hint">The dashboard is at http://localhost:9876 on the PC.</string>
+  <string name="pair_allowed">Paired with %1$s. Photos will go there.</string>
+  <string name="pair_denied">The PC said no.</string>
+  <string name="pair_expired">The request ran out of time.</string>
+  <string name="pair_failed">Could not reach the PC: %1$s</string>
+  <string name="action_try_again">Try again</string>
+  <string name="action_done">Done</string>
 </resources>
