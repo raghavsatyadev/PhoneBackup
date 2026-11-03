@@ -1,5 +1,5 @@
 [versions]
-appName = "PhoneBackup Share"
+appName = "PhoneBackup"
 nameSpace = "io.github.raghavsatyadev.phonebackup"
 sharedNameSpace = "io.github.raghavsatyadev.phonebackup.shared"
 appId = "io.github.raghavsatyadev.phonebackup"
