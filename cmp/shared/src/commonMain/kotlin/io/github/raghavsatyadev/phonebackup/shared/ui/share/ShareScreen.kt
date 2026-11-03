@@ -36,6 +36,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import io.github.raghavsatyadev.phonebackup.shared.ui.theme.rememberHideOnScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -107,26 +110,34 @@ fun ShareScreen(
   onOpenSettings: () -> Unit,
   snackbar: SnackbarHostState,
 ) {
+  // The top bar slides away while scrolling so the photos get the screen.
+  val scroll = TopAppBarDefaults.enterAlwaysScrollBehavior()
+  val bars = rememberHideOnScroll()
   Scaffold(
+    modifier = Modifier.imePadding().nestedScroll(bars.connection).nestedScroll(scroll.nestedScrollConnection),
     topBar = {
       TopAppBar(
+        scrollBehavior = scroll,
         title = { Text(stringResource(Res.string.app_title)) },
         actions = {
+          if (state.showPcPicker) PcPicker(state, onEvent, onOpenSettings)
           IconButton(onClick = onOpenSettings, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.ic_settings), stringResource(Res.string.action_settings))
           }
         },
       )
     },
-    modifier = Modifier.imePadding(),
     snackbarHost = { SnackbarHost(snackbar) },
-    bottomBar = { if (state.photos.isNotEmpty()) UploadBar(state, onEvent, onOpenSettings) },
+    floatingActionButton = { UploadFab(state, onEvent, expanded = bars.visible) },
+    // Only while copying or uploading, so the progress can't scroll out of view.
+    bottomBar = { if (state.photos.isNotEmpty()) UploadProgressBar(state) },
   ) { padding ->
     // Photos are the point of the screen, so they get big tiles: two across on a phone, more on wider screens.
     LazyVerticalGrid(
       columns = GridCells.Adaptive(minSize = 150.dp),
       modifier = Modifier.fillMaxSize().padding(padding),
-      contentPadding = PaddingValues(16.dp),
+      // Bottom room so the floating button never covers the last photos.
+      contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
       horizontalArrangement = Arrangement.spacedBy(12.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {

@@ -7,9 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.semantics.contentDescription
@@ -160,68 +161,5 @@ private fun TonalAction(
   FilledTonalButton(onClick = onClick, enabled = enabled, shapes = ButtonDefaults.shapes()) {
     Icon(painterResource(icon), null, Modifier.size(ButtonDefaults.IconSize))
     Text(stringResource(label), Modifier.padding(start = ButtonDefaults.IconSpacing))
-  }
-}
-
-/** Overall progress and the screen's one main action, pinned below the list. */
-@Composable
-fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit, onManagePcs: () -> Unit) {
-  Surface(
-    color = MaterialTheme.colorScheme.surfaceContainer,
-    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-  ) {
-    Column(
-      Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      state.copying?.let { CopyingProgress(it) }
-      if (state.isUploading) {
-        val done = state.photos.count { it.isFinished || it.status == UploadStatus.Failed }
-        val target = (done + state.currentProgress) / state.photos.size.coerceAtLeast(1)
-        val progress by animateFloatAsState(target, MaterialTheme.motionScheme.slowEffectsSpec())
-        if (animationsEnabled()) {
-          LinearWavyProgressIndicator(progress = { progress }, amplitude = { 1f }, modifier = Modifier.fillMaxWidth())
-        } else {
-          LinearProgressIndicator(progress = { progress }, strokeCap = StrokeCap.Round, modifier = Modifier.fillMaxWidth())
-        }
-      }
-      val allDone = state.photos.isNotEmpty() && state.photos.all { it.isFinished }
-      if (!allDone) PcPicker(state, onEvent, onManagePcs)
-      val height = ButtonDefaults.MediumContainerHeight
-      val retry = state.photos.any { it.status == UploadStatus.Failed }
-      val (icon, label) =
-        when {
-          allDone -> Res.drawable.ic_check_circle to Res.string.action_clear_finished
-          state.isUploading -> Res.drawable.ic_close to Res.string.action_cancel_upload
-          retry -> Res.drawable.ic_refresh to Res.string.action_retry_failed
-          else -> Res.drawable.ic_cloud_upload to Res.string.action_upload
-        }
-      val content: @Composable () -> Unit = {
-        Icon(painterResource(icon), null, Modifier.size(ButtonDefaults.iconSizeFor(height)))
-        Spacer(Modifier.width(ButtonDefaults.iconSpacingFor(height)))
-        Text(stringResource(label), style = ButtonDefaults.textStyleFor(height))
-      }
-      val modifier = Modifier.fillMaxWidth().heightIn(min = height)
-      if (allDone || state.isUploading) {
-        OutlinedButton(
-          onClick = { onEvent(if (state.isUploading) ShareEvent.CancelUpload else ShareEvent.ClearFinished) },
-          shapes = ButtonDefaults.shapesFor(height),
-          contentPadding = ButtonDefaults.contentPaddingFor(height),
-          modifier = modifier,
-        ) {
-          content()
-        }
-      } else {
-        Button(
-          onClick = { onEvent(ShareEvent.Upload) },
-          enabled = state.canUpload,
-          shapes = ButtonDefaults.shapesFor(height),
-          contentPadding = ButtonDefaults.contentPaddingFor(height),
-          modifier = modifier,
-        ) {
-          content()
-        }
-      }
-    }
   }
 }

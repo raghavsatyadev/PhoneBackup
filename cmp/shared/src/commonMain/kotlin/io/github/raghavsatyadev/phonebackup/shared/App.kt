@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import io.github.raghavsatyadev.phonebackup.shared.ui.theme.ScrollAwayBar
+import io.github.raghavsatyadev.phonebackup.shared.ui.theme.rememberHideOnScroll
+import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,17 +69,20 @@ fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
     // Photos shared from another app always land on the Share tab.
     LaunchedEffect(graph.queue) { graph.queue.deliveries.drop(1).collect { backStack.selectTab(ShareKey) } }
     val top = backStack.lastOrNull()
+    val bars = rememberHideOnScroll()
     Scaffold(
       bottomBar = {
         if (top == ShareKey || top == LibraryKey) {
-          NavigationBar {
-            Tab(backStack, ShareKey, Res.drawable.ic_cloud_upload, Res.string.tab_share)
-            Tab(backStack, LibraryKey, Res.drawable.ic_photo_library, Res.string.tab_library)
+          ScrollAwayBar(bars.visible) {
+            ShortNavigationBar {
+              Tab(backStack, ShareKey, Res.drawable.ic_cloud_upload, Res.string.tab_share)
+              Tab(backStack, LibraryKey, Res.drawable.ic_photo_library, Res.string.tab_library)
+            }
           }
         }
       }
     ) { padding ->
-      Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+      Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).nestedScroll(bars.connection)) {
         AppNavDisplay(backStack) {
           entry<ShareKey> {
             ShareRoute(share, onPickPhotos = onPickPhotos, onOpenSettings = { backStack.open(ServersKey) })
@@ -160,13 +166,13 @@ private fun libraryViewModel(graph: AppGraph): LibraryViewModel {
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.Tab(
+private fun Tab(
   backStack: NavBackStack<NavKey>,
   key: NavKey,
   icon: DrawableResource,
   label: StringResource,
 ) {
-  NavigationBarItem(
+  ShortNavigationBarItem(
     selected = backStack.lastOrNull() == key,
     onClick = { backStack.selectTab(key) },
     icon = { Icon(painterResource(icon), null) },

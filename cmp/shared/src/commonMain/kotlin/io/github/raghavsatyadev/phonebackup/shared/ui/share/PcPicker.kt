@@ -20,6 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.raghavsatyadev.phonebackup.shared.resources.Res
@@ -31,19 +33,20 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.send_to
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** "Send to: <PC>" with a menu of paired PCs; locked while an upload runs. */
+/** The PC that gets the photos, with a menu of paired PCs; locked while an upload runs. */
 @Composable
-fun PcPicker(state: ShareUiState, onEvent: (ShareEvent) -> Unit, onManagePcs: () -> Unit) {
+fun PcPicker(state: ShareUiState, onEvent: (ShareEvent) -> Unit, onManagePcs: () -> Unit, modifier: Modifier = Modifier) {
   var open by remember { mutableStateOf(false) }
   val active = state.pcs.find { it.localId == state.activePc }
-  Row(verticalAlignment = Alignment.CenterVertically) {
-    Text(
-      stringResource(Res.string.send_to),
-      style = MaterialTheme.typography.labelLarge,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+  val sendTo = stringResource(Res.string.send_to)
+  Row(modifier, verticalAlignment = Alignment.CenterVertically) {
     Box {
-      TextButton(onClick = { open = true }, enabled = !state.isUploading, shapes = ButtonDefaults.shapes()) {
+      TextButton(
+        onClick = { open = true },
+        enabled = !state.isUploading,
+        shapes = ButtonDefaults.shapes(),
+        modifier = Modifier.semantics { contentDescription = sendTo + " " + (active?.label ?: "") },
+      ) {
         Icon(painterResource(Res.drawable.ic_computer), null, Modifier.size(ButtonDefaults.IconSize))
         Text(
           active?.label ?: stringResource(Res.string.no_pc),

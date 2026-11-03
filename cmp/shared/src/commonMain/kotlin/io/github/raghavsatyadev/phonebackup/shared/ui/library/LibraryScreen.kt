@@ -33,6 +33,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -88,9 +90,13 @@ fun LibraryRoute(viewModel: LibraryViewModel, onOpenSettings: () -> Unit) {
 @Composable
 fun LibraryScreen(state: LibraryUiState, onEvent: (LibraryEvent) -> Unit, onOpenSettings: () -> Unit) {
   val uncategorized = stringResource(Res.string.no_category)
+  // The top bar slides away while scrolling so the photos get the screen.
+  val scroll = TopAppBarDefaults.enterAlwaysScrollBehavior()
   Scaffold(
+    modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
     topBar = {
       TopAppBar(
+        scrollBehavior = scroll,
         title = {
           Text(state.bucket ?: stringResource(Res.string.library_title), maxLines = 1, overflow = TextOverflow.Ellipsis)
         },
