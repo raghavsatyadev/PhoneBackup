@@ -56,6 +56,7 @@ type UploadServer struct {
 	Token  string
 	Vision *VisionWorker // nil when vision tagging is off
 	Groups *GroupIndex   // nil in tests; rebuilds similar-photo groups after uploads
+	Pairs  *PairBook     // nil turns pairing off
 }
 
 // DefaultUploadRoot is <Pictures>/PhoneBackup.
@@ -96,12 +97,15 @@ func (u *UploadServer) Handler() http.Handler {
 	mux.HandleFunc("/api/upload/ping", u.auth(u.handlePing))
 	mux.HandleFunc("/api/upload", u.auth(u.handleUpload))
 	u.registerGallery(mux)
+	if u.Pairs != nil {
+		u.Pairs.registerPhone(mux)
+	}
 	return mux
 }
 
 // StartUploadServer listens on all interfaces so phones on the LAN can reach it.
-func StartUploadServer(port int, root, token string, vision *VisionWorker) {
-	u := &UploadServer{Root: root, Token: token, Vision: vision, Groups: NewGroupIndex(root)}
+func StartUploadServer(port int, root, token string, vision *VisionWorker, pairBook *PairBook) {
+	u := &UploadServer{Root: root, Token: token, Vision: vision, Groups: NewGroupIndex(root), Pairs: pairBook}
 	go u.Groups.Rebuild()
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: u.Handler(), ReadHeaderTimeout: 15 * time.Second}
 	go func() {
@@ -112,13 +116,17 @@ func StartUploadServer(port int, root, token string, vision *VisionWorker) {
 }
 
 // startPhotoUploads loads the token, starts the listener and prints what to type into the app.
-func startPhotoUploads(port int, root string, vision *VisionWorker) {
+// dashboardPort is where the phone gets allowed (printed with each pairing request).
+func startPhotoUploads(port int, root string, vision *VisionWorker, dashboardPort int) {
 	token, tokenPath, err := LoadOrCreateUploadToken()
 	if err != nil {
 		fmt.Printf("⚠️  Photo uploads disabled: cannot create token: %v\n", err)
 		return
 	}
-	StartUploadServer(port, root, token, vision)
+	pairs = NewPairBook(token)
+	dashURL := fmt.Sprintf("http://localhost:%d", dashboardPort)
+	pairs.Notify = func(event string, v PairView) { announcePair(event, v, dashURL) }
+	StartUploadServer(port, root, token, vision, pairs)
 	fmt.Println("📷 Photo uploads from the Android app:")
 	for _, ip := range lanIPv4s() {
 		fmt.Printf("     Server address: http://%s:%d\n", ip, port)

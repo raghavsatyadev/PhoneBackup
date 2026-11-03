@@ -1648,6 +1648,7 @@ function connectWS() {
   ws.onopen = () => {
     document.getElementById('wsStatus').classList.remove('offline');
     document.getElementById('wsStatus').title = 'Connected';
+    window.loadPairRequests?.();
   };
 
   ws.onclose = () => {
@@ -1665,6 +1666,8 @@ function connectWS() {
       const data = JSON.parse(event.data);
       if (data.type === 'transfer_update') {
         updateTransfer(data.transfer);
+      } else if (data.type && data.type.startsWith('pair_')) {
+        window.onPairEvent?.(data);
       }
     } catch {}
   };
@@ -3107,5 +3110,6 @@ refreshDevices();
 browseLocal('');
 loadTransfers();
 </script>
+<script src="/pair.js"></script>
 </body>
 </html>

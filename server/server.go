@@ -893,6 +893,8 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		_ = json.NewEncoder(w).Encode(status)
 	})
 
+	registerPairDashboard(mux)
+
 	// ── Static Files (public/) ───────────────────────────────────────────────
 	fileServer := http.FileServer(http.Dir(publicDir))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

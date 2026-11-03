@@ -121,7 +121,7 @@ func handleServer(args []string) {
 	_ = fs.Parse(args)
 
 	if *uploadPort > 0 {
-		startPhotoUploads(*uploadPort, *uploadDir, NewVisionWorker(*uploadDir, *visionURL, *visionModel))
+		startPhotoUploads(*uploadPort, *uploadDir, NewVisionWorker(*uploadDir, *visionURL, *visionModel), *port)
 	}
 
 	// Auto-detect and register phonebackup_status.json if present in current directory
