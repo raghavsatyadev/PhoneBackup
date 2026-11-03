@@ -64,7 +64,7 @@ Core orchestration engine managing file scanning, transfer progress, rate calcul
 Provides the web dashboard API backend and serves static assets.
 
 - **Key Functions:**
-  - `StartWebServer(port, publicDir, initialStatus)`: Registers routes, serves static assets from `public/`, and initiates HTTP listener.
+  - `StartWebServer(port, lan, publicDir, initialStatus)`: Registers routes, serves static assets from `public/`, and starts the HTTP listener on `127.0.0.1` (all interfaces only when `lan` is true, see `dashboardAddr`). The `/ws` socket uses the default same-origin check.
 - **REST Endpoints:**
   - `GET /api/devices`: Returns connected Android devices.
   - `POST /api/device/connect-wifi`, `POST /api/device/disconnect-wifi`, `POST /api/device/pair`: Wireless ADB controls.
@@ -84,7 +84,7 @@ Provides the web dashboard API backend and serves static assets.
 Entry point for command-line execution and service bootstrapping.
 
 - **Supported CLI Commands:**
-  - `phonebackup.exe server [-port 9876] [-upload-port 9877] [-upload-dir <dir>] [-vision-model <name>] [-vision-url <url>]`: Starts the Web UI server (default port `9876`). Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default `~/Pictures/PhoneBackup`).
+  - `phonebackup.exe server [-port 9876] [-lan] [-upload-port 9877] [-upload-dir <dir>] [-vision-model <name>] [-vision-url <url>]`: Starts the Web UI server (default port `9876`, this PC only; `-lan` opens it to the network). `backup` also takes `-lan`. Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default `~/Pictures/PhoneBackup`).
   - `phonebackup.exe resume <path-or-file>`: Directly resumes a backup given a folder or status JSON file.
   - `phonebackup.exe backup -dest <dir> -sources <dirs> [-device <serial>] [-include <patterns>]`: Starts a CLI backup while simultaneously broadcasting to the web dashboard.
   - `phonebackup.exe organize [-dir <upload-dir>] [-apply]`: Sorts vision-tagged uploads into `_Organized/<Category>/<Year Event>` (dry run unless `-apply`).

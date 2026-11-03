@@ -57,6 +57,8 @@ go build -o phonebackup.exe .
 ```
 Then open `http://localhost:9876` in your browser.
 
+The dashboard only answers on this PC. To open it from another device on your network, start it with `-lan` (it has no login, so only do this on a network you trust). The photo upload API for the Android app is separate and always on your network (port 9877, token protected).
+
 ### 3. CLI Backup & Resume
 ```bash
 # Start a new backup:
@@ -129,7 +131,7 @@ Your privacy and code security are verified through automated audits and transpa
 - **Zero Supply-Chain Risk (Standard Library First)**:
   Unlike projects with hundreds of nested dependencies, PhoneBackup uses standard Go libraries and exactly **one** audited dependency (`gorilla/websocket`). There are no obfuscated scripts, no minified mystery bundles, and no telemetry SDKs.
 - **100% Offline & Local**:
-  Zero tracking, zero analytics, and zero outbound network calls. The web dashboard binds strictly to local loopback (`http://localhost:9876`).
+  Zero tracking, zero analytics, and zero outbound network calls. The web dashboard listens on `127.0.0.1` only (`http://localhost:9876`) unless you add `-lan`.
 - **Direct P2P Transfer**:
   All file transfers occur directly between your device and your PC over your private USB cable or local WiFi network via Google's official Android Debug Bridge (`adb`).
 - **Transparent & Auditable**:

@@ -46,6 +46,7 @@ USAGE:
 
 COMMANDS:
   server [-port 9876]              Start Web Dashboard (default on http://localhost:9876)
+         [-lan]                    Also open the dashboard to your local network (no login)
          [-upload-port 9877]       Photo upload API for the Android app (0 disables it)
          [-upload-dir <folder>]    Where shared photos are saved (default: Pictures\PhoneBackup)
          [-vision-model <name>]    Ollama vision model that captions and tags uploads (off by default)
@@ -112,6 +113,7 @@ func main() {
 func handleServer(args []string) {
 	fs := flag.NewFlagSet("server", flag.ExitOnError)
 	port := fs.Int("port", getPort(), "HTTP server port")
+	lan := fs.Bool("lan", false, "Open the Web Dashboard to your local network (default: this PC only)")
 	uploadPort := fs.Int("upload-port", 9877, "Photo upload API port for the Android app (0 disables it)")
 	uploadDir := fs.String("upload-dir", DefaultUploadRoot(), "Folder where photos shared from the Android app are saved")
 	visionModel := fs.String("vision-model", "", "Ollama vision model that captions and tags uploaded photos (empty = off)")
@@ -135,7 +137,7 @@ func handleServer(args []string) {
 		}
 	}
 
-	StartWebServer(*port, getPublicDir(), initial)
+	StartWebServer(*port, *lan, getPublicDir(), initial)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -229,7 +231,7 @@ func handleResume(target string) {
 
 	port := getPort()
 	// Start complementary Web Dashboard
-	StartWebServer(port, getPublicDir(), status)
+	StartWebServer(port, false, getPublicDir(), status)
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
 	fmt.Println("║         📱 PhoneBackup (Go) — Resuming Transfer            ║")
@@ -254,6 +256,7 @@ func handleBackup(args []string) {
 	device := fs.String("device", "", "ADB device serial")
 	includeStr := fs.String("include", "", "Comma-separated file patterns (e.g. *.jpg,*.mp4)")
 	port := fs.Int("port", getPort(), "Web Dashboard port")
+	lan := fs.Bool("lan", false, "Open the Web Dashboard to your local network (default: this PC only)")
 	_ = fs.Parse(args)
 
 	if *dest == "" || *sourcesStr == "" {
@@ -313,7 +316,7 @@ func handleBackup(args []string) {
 	}
 
 	// Start complementary Web Dashboard
-	StartWebServer(*port, getPublicDir(), status)
+	StartWebServer(*port, *lan, getPublicDir(), status)
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
 	fmt.Println("║         📱 PhoneBackup (Go) — New Transfer                ║")

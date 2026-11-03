@@ -22,11 +22,9 @@ type WSHub struct {
 	mu      sync.Mutex
 }
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for local UI
-	},
-}
+// The default origin check only accepts the dashboard's own page, so other
+// websites open in the browser can't read transfer progress.
+var upgrader = websocket.Upgrader{}
 
 func NewWSHub() *WSHub {
 	return &WSHub{
@@ -910,14 +908,23 @@ func SetupHTTPServer(publicDir string) http.Handler {
 	return mux
 }
 
+// dashboardAddr is where the dashboard listens: this PC only, unless lan is set.
+// The dashboard has no login and can browse local drives, so the LAN is opt-in.
+func dashboardAddr(port int, lan bool) string {
+	if lan {
+		return fmt.Sprintf(":%d", port)
+	}
+	return fmt.Sprintf("127.0.0.1:%d", port)
+}
+
 // StartWebServer starts the Go HTTP & WebSocket dashboard server.
-func StartWebServer(port int, publicDir string, initialStatus *BackupStatus) {
+func StartWebServer(port int, lan bool, publicDir string, initialStatus *BackupStatus) {
 	if initialStatus != nil {
 		RegisterTransfer(initialStatus)
 	}
 
 	handler := SetupHTTPServer(publicDir)
-	addr := fmt.Sprintf(":%d", port)
+	addr := dashboardAddr(port, lan)
 
 	server := &http.Server{
 		Addr:    addr,
@@ -925,13 +932,19 @@ func StartWebServer(port int, publicDir string, initialStatus *BackupStatus) {
 	}
 
 	go func() {
-		_ = server.ListenAndServe()
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("Web Dashboard failed on %s: %v\n", addr, err)
+		}
 	}()
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
 	fmt.Println("║       🌐 PhoneBackup Go Dashboard Online                  ║")
 	fmt.Println("╠════════════════════════════════════════════════════════════╣")
 	fmt.Printf("║ Web Dashboard:  http://localhost:%-25d║\n", port)
-	fmt.Printf("║ Local Network:  http://127.0.0.1:%-25d║\n", port)
+	if lan {
+		fmt.Printf("║ %-59s║\n", "Also open to your local network (-lan). It has no login.")
+	} else {
+		fmt.Printf("║ %-59s║\n", "This PC only. Add -lan to open it to your network.")
+	}
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
 }
