@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -117,20 +119,23 @@ fun ShareScreen(
     snackbarHost = { SnackbarHost(snackbar) },
     bottomBar = { if (state.photos.isNotEmpty()) UploadBar(state, onEvent) },
   ) { padding ->
-    LazyColumn(
+    // Photos are the point of the screen, so they get big tiles: two across on a phone, more on wider screens.
+    LazyVerticalGrid(
+      columns = GridCells.Adaptive(minSize = 150.dp),
       modifier = Modifier.fillMaxSize().padding(padding),
       contentPadding = PaddingValues(16.dp),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
       if (!state.serverConfigured) {
-        item(key = "setup") { SetupCard(onOpenSettings) }
+        item(key = "setup", span = { GridItemSpan(maxLineSpan) }) { SetupCard(onOpenSettings) }
       }
       if (state.photos.isEmpty()) {
-        item(key = "empty") { EmptyState(onPickPhotos) }
+        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyState(onPickPhotos) }
       } else {
-        item(key = "form") { GroupForm(state, onEvent, onPickPhotos) }
+        item(key = "form", span = { GridItemSpan(maxLineSpan) }) { GroupForm(state, onEvent, onPickPhotos) }
         items(state.photos, key = { it.id }) { photo ->
-          PhotoRow(
+          PhotoTile(
             photo = photo,
             progress = if (photo.status == UploadStatus.Uploading) state.currentProgress else 0f,
             onEditDate = { onEvent(ShareEvent.EditDate(DateTarget.One(photo.id))) },
