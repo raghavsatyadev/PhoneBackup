@@ -35,13 +35,17 @@ class AndroidPhotoImporter(context: Context) {
   private val mutex = Mutex()
   private val known = HashSet<String>()
 
-  suspend fun import(uris: List<Uri>): List<IncomingPhoto> =
+  /** [onProgress] gets (files handled so far, name of the last one) after each file. */
+  suspend fun import(uris: List<Uri>, onProgress: (Int, String) -> Unit = { _, _ -> }): List<IncomingPhoto> =
     withContext(Dispatchers.IO) {
       mutex.withLock {
         uris
           .filter { it.scheme == ContentResolver.SCHEME_CONTENT }
-          .mapNotNull { uri ->
-            runCatching { copy(uri) }.onFailure { Log.w(TAG, "Could not import $uri", it) }.getOrNull()
+          .mapIndexedNotNull { index, uri ->
+            val photo =
+              runCatching { copy(uri) }.onFailure { Log.w(TAG, "Could not import $uri", it) }.getOrNull()
+            onProgress(index + 1, photo?.fileName.orEmpty())
+            photo
           }
           .onEach { known += it.id }
       }

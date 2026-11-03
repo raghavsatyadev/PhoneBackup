@@ -52,7 +52,8 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.action_clear_finish
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_retry_failed
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_set_date_all
 import io.github.raghavsatyadev.phonebackup.shared.resources.action_upload
-import io.github.raghavsatyadev.phonebackup.shared.resources.action_uploading
+import io.github.raghavsatyadev.phonebackup.shared.resources.action_cancel_upload
+import io.github.raghavsatyadev.phonebackup.shared.resources.ic_close
 import io.github.raghavsatyadev.phonebackup.shared.resources.album_label
 import io.github.raghavsatyadev.phonebackup.shared.resources.album_placeholder
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_add_photo_alternate
@@ -173,6 +174,7 @@ fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit) {
       Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      state.copying?.let { CopyingProgress(it) }
       if (state.isUploading) {
         val done = state.photos.count { it.isFinished || it.status == UploadStatus.Failed }
         val target = (done + state.currentProgress) / state.photos.size.coerceAtLeast(1)
@@ -189,7 +191,7 @@ fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit) {
       val (icon, label) =
         when {
           allDone -> Res.drawable.ic_check_circle to Res.string.action_clear_finished
-          state.isUploading -> Res.drawable.ic_cloud_upload to Res.string.action_uploading
+          state.isUploading -> Res.drawable.ic_close to Res.string.action_cancel_upload
           retry -> Res.drawable.ic_refresh to Res.string.action_retry_failed
           else -> Res.drawable.ic_cloud_upload to Res.string.action_upload
         }
@@ -199,9 +201,9 @@ fun UploadBar(state: ShareUiState, onEvent: (ShareEvent) -> Unit) {
         Text(stringResource(label), style = ButtonDefaults.textStyleFor(height))
       }
       val modifier = Modifier.fillMaxWidth().heightIn(min = height)
-      if (allDone) {
+      if (allDone || state.isUploading) {
         OutlinedButton(
-          onClick = { onEvent(ShareEvent.ClearFinished) },
+          onClick = { onEvent(if (state.isUploading) ShareEvent.CancelUpload else ShareEvent.ClearFinished) },
           shapes = ButtonDefaults.shapesFor(height),
           contentPadding = ButtonDefaults.contentPaddingFor(height),
           modifier = modifier,

@@ -45,7 +45,7 @@ fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
     var showSettings by rememberSaveable { mutableStateOf(!graph.settings.config.value.isComplete) }
     var tab by rememberSaveable { mutableStateOf(MainTab.Share) }
     // Photos shared from another app always land on the Share tab.
-    LaunchedEffect(graph.inbox) { graph.inbox.deliveries.drop(1).collect { tab = MainTab.Share } }
+    LaunchedEffect(graph.queue) { graph.queue.deliveries.drop(1).collect { tab = MainTab.Share } }
     if (showSettings) {
       Settings(graph) { showSettings = false }
       return@AppTheme
@@ -71,7 +71,7 @@ fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
       Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
         when (tab) {
           MainTab.Share -> {
-            val vm = viewModel { ShareViewModel(graph.inbox, graph.settings, graph.uploads) }
+            val vm = viewModel { ShareViewModel(graph.queue, graph.settings) }
             ShareRoute(vm, onPickPhotos = onPickPhotos, onOpenSettings = { showSettings = true })
           }
           MainTab.Library -> Library(graph) { showSettings = true }

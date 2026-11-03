@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -55,6 +56,8 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.action_settings
 import io.github.raghavsatyadev.phonebackup.shared.resources.app_title
 import io.github.raghavsatyadev.phonebackup.shared.resources.empty_body
 import io.github.raghavsatyadev.phonebackup.shared.resources.empty_title
+import io.github.raghavsatyadev.phonebackup.shared.resources.copying_photos
+import io.github.raghavsatyadev.phonebackup.shared.data.TransferProgress
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_add_photo_alternate
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_photo_library
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_settings
@@ -131,7 +134,13 @@ fun ShareScreen(
         item(key = "setup", span = { GridItemSpan(maxLineSpan) }) { SetupCard(onOpenSettings) }
       }
       if (state.photos.isEmpty()) {
-        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyState(onPickPhotos) }
+        // With photos on screen the progress sits in the upload bar instead, where it can't scroll away.
+        val copy = state.copying
+        if (copy != null) {
+          item(key = "copying", span = { GridItemSpan(maxLineSpan) }) { CopyingCard(copy) }
+        } else {
+          item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyState(onPickPhotos) }
+        }
       } else {
         item(key = "form", span = { GridItemSpan(maxLineSpan) }) { GroupForm(state, onEvent, onPickPhotos) }
         items(state.photos, key = { it.id }) { photo ->
@@ -207,6 +216,24 @@ private fun EmptyState(onPickPhotos: () -> Unit) {
         Icon(painterResource(Res.drawable.ic_add_photo_alternate), null, Modifier.size(ButtonDefaults.IconSize))
         Text(stringResource(Res.string.action_pick_photos), Modifier.padding(start = ButtonDefaults.IconSpacing))
       }
+    }
+  }
+}
+
+/** Shared photos are copied into the app before they show up; this fills the gap. */
+@Composable
+private fun CopyingCard(copy: TransferProgress) {
+  Card(shape = MaterialTheme.shapes.large) { CopyingProgress(copy, Modifier.padding(16.dp)) }
+}
+
+@Composable
+internal fun CopyingProgress(copy: TransferProgress, modifier: Modifier = Modifier) {
+  Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text(stringResource(Res.string.copying_photos, copy.done, copy.total), style = MaterialTheme.typography.bodyLarge)
+    if (copy.total == 0) {
+      LinearWavyProgressIndicator(Modifier.fillMaxWidth())
+    } else {
+      LinearWavyProgressIndicator(progress = { copy.fraction }, modifier = Modifier.fillMaxWidth())
     }
   }
 }

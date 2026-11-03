@@ -7,6 +7,7 @@
 
   <!-- Share screen -->
   <string name="empty_title">No photos yet</string>
+  <string name="copying_photos">Getting photos ready: %1$d of %2$d</string>
   <string name="empty_body">Share photos to PhoneBackup Share from Gallery, Photos, WhatsApp or any app, or pick them here.</string>
   <string name="action_pick_photos">Pick photos</string>
   <string name="action_add_more">Add more</string>
@@ -19,7 +20,7 @@
   <string name="remove_tag">Remove tag %1$s</string>
   <string name="action_set_date_all">Set date for all</string>
   <string name="action_upload">Upload to PC</string>
-  <string name="action_uploading">Uploading…</string>
+  <string name="action_cancel_upload">Cancel upload</string>
   <string name="action_retry_failed">Retry failed</string>
   <string name="action_clear_finished">Clear uploaded</string>
   <string name="remove_photo">Remove photo</string>
@@ -27,6 +28,7 @@
   <string name="setup_needed">Connect to your PC first: open Settings and enter the address and token the PhoneBackup server prints.</string>
   <string name="action_open_settings">Open settings</string>
   <string name="msg_upload_done">Uploaded %1$s photos.</string>
+  <string name="msg_upload_cancelled">Upload stopped after %1$s photos. The rest are still waiting.</string>
   <string name="msg_upload_partial">%1$s photos failed. Check the PC connection, then retry.</string>
 
   <!-- Date sources -->

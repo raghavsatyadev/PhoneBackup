@@ -1,6 +1,7 @@
 package io.github.raghavsatyadev.phonebackup.shared.ui.share
 
 import androidx.compose.runtime.Immutable
+import io.github.raghavsatyadev.phonebackup.shared.data.TransferProgress
 import io.github.raghavsatyadev.phonebackup.shared.model.PhotoItem
 import io.github.raghavsatyadev.phonebackup.shared.model.needsUpload
 import kotlinx.collections.immutable.ImmutableList
@@ -26,6 +27,8 @@ data class ShareUiState(
   val currentProgress: Float = 0f,
   val serverConfigured: Boolean = false,
   val dateTarget: DateTarget? = null,
+  /** Shared photos still being copied into the app; null when none are. */
+  val copying: TransferProgress? = null,
 ) {
   val canUpload: Boolean
     get() = !isUploading && serverConfigured && photos.any { it.needsUpload }
@@ -49,6 +52,8 @@ sealed interface ShareEvent {
   data class DateChosen(val value: LocalDateTime) : ShareEvent
 
   data object Upload : ShareEvent
+
+  data object CancelUpload : ShareEvent
 
   data object ClearFinished : ShareEvent
 }

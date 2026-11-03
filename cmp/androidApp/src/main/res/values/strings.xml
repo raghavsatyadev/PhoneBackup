@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="share_target_label">Send to PC (PhoneBackup)</string>
+  <string name="channel_transfer">Copy and upload progress</string>
+  <string name="channel_transfer_done">Finished uploads</string>
+  <string name="notif_copying">Copying photos</string>
+  <string name="notif_uploading">Uploading to PC</string>
+  <string name="notif_preparing">Preparing…</string>
+  <string name="notif_count">%1$d of %2$d</string>
+  <string name="notif_cancel">Cancel</string>
+  <string name="notif_done_title">Upload finished</string>
+  <string name="notif_done_text">%1$d photos sent to your PC.</string>
+  <string name="notif_failed_title">Some photos didn\'t upload</string>
+  <string name="notif_failed_text">%1$d failed. Open the app to retry.</string>
+  <string name="notif_stopped_title">Upload stopped</string>
+  <string name="notif_stopped_text">%1$d sent. The rest are still waiting.</string>
 </resources>
