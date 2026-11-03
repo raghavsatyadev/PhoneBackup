@@ -81,8 +81,9 @@ class AndroidPhotoImporter(context: Context) {
   }
 
   private fun restoreDir(dir: File): IncomingPhoto? {
-    val file = dir.listFiles { f -> f.isFile && f.name != META }?.firstOrNull()
-    if (file == null) {
+    val file = dir.listFiles { f -> f.isFile && f.name != META && f.name != SENT_MARKER }?.firstOrNull()
+    // Sent in an earlier run and never cleared: nothing left to do with it.
+    if (file == null || File(dir, SENT_MARKER).exists()) {
       dir.deleteRecursively()
       return null
     }

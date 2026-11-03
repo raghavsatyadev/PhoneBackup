@@ -20,6 +20,17 @@ fun saveImportedDate(path: String, takenAt: LocalDateTime) {
   }
 }
 
+/**
+ * Marks an imported photo as sent. The copy stays so its tile keeps showing until the user
+ * clears it; a restart deletes marked folders instead of queueing them again.
+ */
+fun markImportedSent(path: String) {
+  val dir = Path(path).parent ?: return
+  runCatching { SystemFileSystem.sink(Path(dir, SENT_MARKER)).buffered().use { it.writeString("1") } }
+}
+
+const val SENT_MARKER = ".sent"
+
 /** Deletes an imported photo and its per-photo folder (incoming/<id>/). */
 fun deleteImported(path: String) {
   val file = Path(path)

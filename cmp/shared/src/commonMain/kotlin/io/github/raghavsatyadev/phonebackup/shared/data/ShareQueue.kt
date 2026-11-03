@@ -138,6 +138,7 @@ class ShareQueue(
   }
 
   fun clearFinished() {
+    _photos.value.filter { it.isFinished }.forEach { deleteImported(it.path) }
     _photos.update { list -> list.filterNot { it.isFinished }.toImmutableList() }
     clearDraftIfDone()
   }
@@ -174,7 +175,7 @@ class ShareQueue(
             sender.send(config, photo, album, tags) { f ->
               _upload.update { it?.copy(fileFraction = f.coerceIn(0f, 1f)) }
             }
-          deleteImported(photo.path)
+          markImportedSent(photo.path)
           setPhoto(id) { it.copy(status = if (skipped) UploadStatus.Skipped else UploadStatus.Done) }
           sent++
         } catch (e: CancellationException) {
