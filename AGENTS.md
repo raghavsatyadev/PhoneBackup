@@ -17,6 +17,8 @@ PhoneBackup is a **lightweight, native Go-based Android backup solution** with a
 
 ## 📂 File Map & Component Responsibilities
 
+Two top-level folders: `server/` holds the Go module (sections 1–6 and 8, paths below are relative to it) and `cmp/` holds the Compose Multiplatform app (section 7).
+
 ### 1. `adb.go` — Low-Level ADB Process & Hardware Communication
 Handles all communication with `adb.exe` and connected Android devices.
 
@@ -118,8 +120,8 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
 
 ---
 
-### 7. `android/` — Android Share Client (Kotlin Multiplatform + Compose Multiplatform)
-Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd android; ./gradlew :androidApp:assembleDebug`; tests: `./gradlew :shared:testAndroidHostTest`.
+### 7. `cmp/` — Android Share Client (Kotlin Multiplatform + Compose Multiplatform)
+Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gradlew :androidApp:assembleDebug` (release: `:androidApp:assembleRelease`, signed with the key named in `~/.gradle/gradle.properties` `PHONEBACKUP_*`, shrunk with R8); tests: `./gradlew :shared:testAndroidHostTest`.
 
 - `androidApp/`: Thin Android shell. `MainActivity` receives `ACTION_SEND` / `ACTION_SEND_MULTIPLE` for `image/*` (onCreate + onNewIntent) and the photo picker; `PhoneBackupApp` builds the `AppGraph` and imports/restores photos on an app-wide scope.
 - `shared/commonMain`: All UI and logic.
@@ -147,4 +149,4 @@ Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd android; .
 3. **Status File Synchronization:**
    - Any modifications to the `BackupStatus` struct in `transfer.go` should remain JSON backward-compatible with older `phonebackup_status.json` files.
 4. **Build Verification:**
-   - Verify changes with `go build -v ./...` and recompile `phonebackup.exe` with `go build -o phonebackup.exe .`.
+   - From `server/`, verify changes with `go build -v ./...` and recompile `phonebackup.exe` with `go build -o phonebackup.exe .`.

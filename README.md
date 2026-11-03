@@ -34,8 +34,12 @@ folder next to the program. You still need ADB (see below). On macOS, if Gatekee
 
 ## 🚀 Quick Start
 
+The repository has two parts: `server/` (the Go backup tool, web dashboard and upload API) and `cmp/` (the Compose Multiplatform phone app).
+
 ### 1. Build Binary
 ```bash
+cd server
+
 # Linux / macOS:
 go build -o phonebackup .
 
@@ -64,10 +68,10 @@ Then open `http://localhost:9876` in your browser.
 ```
 
 ### 4. Share Photos from Your Phone (Android app)
-The `android/` folder holds **PhoneBackup Share**, an Android app that sends photos to your PC over Wi-Fi.
+The `cmp/` folder holds **PhoneBackup Share**, an Android app that sends photos to your PC over Wi-Fi.
 
 1. Start the server (`phonebackup server`). It prints the PC address (e.g. `http://192.168.1.20:9877`) and an upload token. Allow it through the firewall on first run.
-2. Build and install the app: `cd android && ./gradlew :androidApp:installDebug`.
+2. Build and install the app: `cd cmp && ./gradlew :androidApp:installDebug`.
 3. In the app, enter the address and token, then tap **Test connection**.
 4. Share photos to **PhoneBackup Share** from any app (or pick them in the app). Set an album name and tags, check or edit the dates, and tap **Upload to PC**.
 
