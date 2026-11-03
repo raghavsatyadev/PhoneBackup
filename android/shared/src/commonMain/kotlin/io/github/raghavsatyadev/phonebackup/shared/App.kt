@@ -1,9 +1,5 @@
 package io.github.raghavsatyadev.phonebackup.shared
 
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,11 +10,11 @@ import io.github.raghavsatyadev.phonebackup.shared.ui.settings.SettingsRoute
 import io.github.raghavsatyadev.phonebackup.shared.ui.settings.SettingsViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.share.ShareRoute
 import io.github.raghavsatyadev.phonebackup.shared.ui.share.ShareViewModel
+import io.github.raghavsatyadev.phonebackup.shared.ui.theme.AppTheme
 
 @Composable
 fun App(graph: AppGraph, onPickPhotos: () -> Unit) {
-  val colors = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
-  MaterialTheme(colorScheme = colors) {
+  AppTheme {
     var showSettings by rememberSaveable { mutableStateOf(!graph.settings.config.value.isComplete) }
     if (showSettings) {
       val vm = viewModel { SettingsViewModel(graph.settings, graph.uploads) }

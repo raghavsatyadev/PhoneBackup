@@ -42,7 +42,7 @@
   <string name="status_uploading">Uploading</string>
   <string name="status_done">Uploaded</string>
   <string name="status_skipped">Already on PC</string>
-  <string name="status_failed">Failed: %1$s</string>
+  <string name="status_failed_short">Failed</string>
 
   <!-- Date dialog -->
   <string name="date_dialog_title">When was this taken?</string>
