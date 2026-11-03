@@ -26,11 +26,12 @@ type VisionMeta struct {
 	AnalyzedAt time.Time `json:"analyzedAt"`
 	Caption    string    `json:"caption,omitempty"`
 	Tags       []string  `json:"tags,omitempty"`
-	Text       string    `json:"text,omitempty"` // readable text in the image
+	Text       string    `json:"text,omitempty"`   // readable text in the image
+	Frames     int       `json:"frames,omitempty"` // video: how many frames the model saw
 	Error      string    `json:"error,omitempty"`
 }
 
-// errUnsupported marks photos the model can never read (videos, HEIC...).
+// errUnsupported marks files the model can never read (documents, huge files...).
 var errUnsupported = errors.New("unsupported format")
 
 type visionJob struct{ albumDir, fileName string }

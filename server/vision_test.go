@@ -103,10 +103,25 @@ func TestVisionProcessWritesSeparateFileAndShrinks(t *testing.T) {
 func TestVisionUnsupportedIsRecorded(t *testing.T) {
 	srv := fakeOllama(t, "{}", nil)
 	defer srv.Close()
-	root, albumDir := newAlbum(t, "clip.mp4", 0, 0)
-	NewVisionWorker(root, srv.URL, "m").process(visionJob{albumDir, "clip.mp4"})
-	if m, ok := readVision(t, albumDir, "clip.mp4"); !ok || m.Error == "" {
-		t.Fatalf("want an error result for a video, got %+v ok=%v", m, ok)
+	root, albumDir := newAlbum(t, "notes.pdf", 0, 0)
+	NewVisionWorker(root, srv.URL, "m").process(visionJob{albumDir, "notes.pdf"})
+	if m, ok := readVision(t, albumDir, "notes.pdf"); !ok || m.Error == "" {
+		t.Fatalf("want an error result for a PDF, got %+v ok=%v", m, ok)
+	}
+}
+
+func TestVideoFrameTimes(t *testing.T) {
+	cases := map[float64][]float64{1: {0.5}, 10: {2, 5, 8}, 100: {10, 30, 50, 70, 90}}
+	for d, want := range cases {
+		got := videoFrameTimes(d)
+		if len(got) != len(want) {
+			t.Fatalf("%vs: got %v want %v", d, got, want)
+		}
+		for i := range want {
+			if diff := got[i] - want[i]; diff > 1e-9 || diff < -1e-9 {
+				t.Fatalf("%vs: got %v want %v", d, got, want)
+			}
+		}
 	}
 }
 

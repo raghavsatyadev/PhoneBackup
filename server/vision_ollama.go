@@ -25,9 +25,12 @@ const (
 	DefaultVisionURL = "http://127.0.0.1:11434"
 	visionMaxSide    = 1024     // big photos cost ~16k prompt tokens and a minute; 1024px is plenty
 	visionMaxBytes   = 64 << 20 // skip anything larger than this
-	visionPrompt     = "Describe this photo for a photo library. Return JSON with: " +
-		"caption (one plain sentence), tags (3-10 short lowercase keywords: objects, place, people count, event, mood), " +
-		"text (any readable text in the image, empty string if none)."
+	visionNumCtx     = 8192     // one photo is ~1-2k tokens; Ollama's default context is huge and spills to CPU
+	visionAsk        = "Return JSON with: caption (one plain sentence), " +
+		"tags (3-10 short lowercase keywords: objects, place, people count, event, mood), " +
+		"text (any readable text, empty string if none)."
+	visionPrompt      = "Describe this photo for a photo library. " + visionAsk
+	visionVideoPrompt = "These images are frames from one video, in order. Describe the video for a photo library. " + visionAsk
 )
 
 var errBadImage = errors.New("cannot decode image")
@@ -52,6 +55,7 @@ type ollamaChatRequest struct {
 	Think     bool            `json:"think"`
 	KeepAlive string          `json:"keep_alive"`
 	Format    json.RawMessage `json:"format"`
+	Options   map[string]any  `json:"options,omitempty"`
 	Messages  []ollamaMessage `json:"messages"`
 }
 
@@ -65,15 +69,20 @@ var visionSchema = json.RawMessage(`{"type":"object","properties":{` +
 	`"caption":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"text":{"type":"string"}},` +
 	`"required":["caption","tags","text"]}`)
 
-// Analyze reads the photo, shrinks it and asks the model for caption, tags and text.
+// Analyze prepares the photo (or video frames) and asks the model for caption, tags and text.
 func (o *OllamaVision) Analyze(path string) (VisionMeta, error) {
-	img, err := prepareVisionImage(path)
+	images, prompt, err := prepareVisionInput(path)
 	if err != nil {
 		return VisionMeta{}, err
 	}
+	encoded := make([]string, len(images))
+	for i, img := range images {
+		encoded[i] = base64.StdEncoding.EncodeToString(img)
+	}
 	body, _ := json.Marshal(ollamaChatRequest{
 		Model: o.Model, KeepAlive: "5m", Format: visionSchema,
-		Messages: []ollamaMessage{{Role: "user", Content: visionPrompt, Images: []string{base64.StdEncoding.EncodeToString(img)}}},
+		Options:  map[string]any{"num_ctx": visionNumCtx},
+		Messages: []ollamaMessage{{Role: "user", Content: prompt, Images: encoded}},
 	})
 	resp, err := o.HTTP.Post(o.URL+"/api/chat", "application/json", bytes.NewReader(body))
 	if err != nil {
@@ -92,7 +101,30 @@ func (o *OllamaVision) Analyze(path string) (VisionMeta, error) {
 	if err := json.Unmarshal(raw, &chat); err != nil {
 		return VisionMeta{}, fmt.Errorf("bad ollama reply: %w", err)
 	}
-	return parseVisionReply(o.Model, chat.Message.Content)
+	m, err := parseVisionReply(o.Model, chat.Message.Content)
+	if err == nil && prompt == visionVideoPrompt {
+		m.Frames = len(images)
+	}
+	return m, err
+}
+
+// prepareVisionInput returns the images to send and the prompt to use.
+func prepareVisionInput(path string) ([][]byte, string, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch {
+	case videoExts[ext]:
+		frames, err := videoFrames(path)
+		return frames, visionVideoPrompt, err
+	case heicExts[ext]:
+		data, err := heicToJPEG(path)
+		if err != nil {
+			return nil, "", err
+		}
+		img, err := shrinkJPEGBytes(data, true)
+		return [][]byte{img}, visionPrompt, err
+	}
+	img, err := prepareVisionImage(path)
+	return [][]byte{img}, visionPrompt, err
 }
 
 // parseVisionReply accepts the model's JSON, even when wrapped in text or a code fence.
@@ -144,12 +176,18 @@ func prepareVisionImage(path string) ([]byte, error) {
 	if ext == ".webp" {
 		return data, nil
 	}
+	return shrinkJPEGBytes(data, ext == ".jpg" || ext == ".jpeg")
+}
+
+// shrinkJPEGBytes decodes an image and re-encodes it as JPEG within visionMaxSide.
+// A small image that is already JPEG (keepSmall) is returned unchanged.
+func shrinkJPEGBytes(data []byte, keepSmall bool) ([]byte, error) {
 	src, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", errBadImage, err)
 	}
 	b := src.Bounds()
-	if max(b.Dx(), b.Dy()) <= visionMaxSide && (ext == ".jpg" || ext == ".jpeg") {
+	if max(b.Dx(), b.Dy()) <= visionMaxSide && keepSmall {
 		return data, nil
 	}
 	var buf bytes.Buffer

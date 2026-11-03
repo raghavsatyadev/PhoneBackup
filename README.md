@@ -77,7 +77,7 @@ The `cmp/` folder holds **PhoneBackup Share**, an Android app that sends photos 
 
 Photos are saved unchanged in `~/Pictures/PhoneBackup/<album>/` (change with `-upload-dir`). Each file's modified time is set to the photo's date, and tags and dates are stored in `<album>/.phonebackup/<file>.json`.
 
-**AI captions and tags (optional).** Start the server with a local [Ollama](https://ollama.com) vision model and every uploaded photo gets a caption, tags and any readable text, saved to `<album>/.phonebackup/<file>.vision.json`. Your own tags are never changed. It runs in the background after each upload, and on start it also tags earlier uploads that have none yet. Videos and HEIC are skipped.
+**AI captions and tags (optional).** Start the server with a local [Ollama](https://ollama.com) vision model and every uploaded photo gets a caption, tags and any readable text, saved to `<album>/.phonebackup/<file>.vision.json`. Your own tags are never changed. It runs in the background after each upload, and on start it also tags earlier uploads that have none yet. HEIC photos and videos need [ffmpeg](https://ffmpeg.org) on PATH: HEIC is converted, and a video is described from 3 frames (at 20%, 50% and 80% of its length; 1 frame for clips under 2 s, 5 for clips over a minute).
 
 ```bash
 ollama pull qwen3-vl:8b
