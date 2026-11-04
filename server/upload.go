@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -157,6 +158,8 @@ func (u *UploadServer) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if u.Token == "" || subtle.ConstantTimeCompare([]byte(got), []byte(u.Token)) != 1 {
+			h := r.Header.Get("Authorization")
+			log.Printf("upload: refused %s %s from %s (Authorization %q..., token length %d)", r.Method, r.URL.Path, r.RemoteAddr, prefix(h, 7), len(got))
 			writeUploadJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid or missing token"})
 			return
 		}
@@ -348,4 +351,12 @@ func writeUploadJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// prefix returns at most the first n bytes of s (for logs that must not show secrets).
+func prefix(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
 }

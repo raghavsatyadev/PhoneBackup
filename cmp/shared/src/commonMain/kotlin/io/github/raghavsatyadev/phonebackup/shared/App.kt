@@ -44,6 +44,7 @@ import io.github.raghavsatyadev.phonebackup.shared.data.NetworkServers
 import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 import io.github.raghavsatyadev.phonebackup.shared.data.ShareQueue
 import kotlinx.coroutines.flow.drop
+import androidx.compose.runtime.saveable.rememberSaveable
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -109,9 +110,12 @@ fun ViewerApp() {
 
 /** Opens the PC list over [root] on first run, so Back from it lands on the main screen. */
 @Composable
-private fun rememberStartStack(root: NavKey): NavBackStack<NavKey> =
-  if (koinInject<SettingsStore>().config.value.isComplete) rememberNavBackStack(NavConfig, root)
-  else rememberNavBackStack(NavConfig, root, ServersKey)
+private fun rememberStartStack(root: NavKey): NavBackStack<NavKey> {
+  // Decided once: pairing later must not swap in a fresh stack (Back would then leave the app).
+  val settings = koinInject<SettingsStore>()
+  val firstRun = rememberSaveable { !settings.config.value.isComplete }
+  return if (firstRun) rememberNavBackStack(NavConfig, root, ServersKey) else rememberNavBackStack(NavConfig, root)
+}
 
 /** Looks for PCs on the network while the app is on screen. */
 @Composable
