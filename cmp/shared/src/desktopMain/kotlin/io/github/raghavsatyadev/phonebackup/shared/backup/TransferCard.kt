@@ -47,22 +47,20 @@ class TransferActions(
   val onRetry: (Transfer) -> Unit,
 )
 
-/** A backup with its progress and controls; [onOpen] shows the detail screen. */
+/**
+ * A backup with its progress and controls; [onOpen] (the Details button) shows the detail screen.
+ * The card itself is not clickable, so a click just beside Pause or Resume never opens Details.
+ */
 @Composable
 fun TransferCard(transfer: Transfer, actions: TransferActions, onOpen: (() -> Unit)?, modifier: Modifier = Modifier) {
   val colors =
     if (transfer.isActive) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
     else CardDefaults.cardColors()
-  val content: @Composable () -> Unit = {
+  Card(modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = colors) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       TransferSummary(transfer)
       TransferControls(transfer, actions, onOpen)
     }
-  }
-  if (onOpen != null) {
-    Card(onClick = onOpen, modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = colors) { content() }
-  } else {
-    Card(modifier = modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = colors) { content() }
   }
 }
 

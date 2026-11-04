@@ -23,6 +23,8 @@ data class BackupUiState(
   val destination: String = "",
   val destinationError: String? = null,
   val checkingDestination: Boolean = false,
+  /** What Check folder found when the folder holds no backup (ready or just created). */
+  val destinationNote: StringResource? = null,
   /** A backup already saved in the destination folder, which can be resumed. */
   val detected: Transfer? = null,
   /** Newest first. */

@@ -74,7 +74,7 @@ class BackupViewModel(
       }
       is BackupEvent.Filter -> _state.update { it.copy(filter = event.text) }
       is BackupEvent.Destination ->
-        _state.update { it.copy(destination = event.text, destinationError = null, detected = null) }
+        _state.update { it.copy(destination = event.text, destinationError = null, destinationNote = null, detected = null) }
       BackupEvent.CheckDestination -> checkDestination()
       BackupEvent.BrowseDestination -> browseDestination()
       BackupEvent.Start -> start()
@@ -143,16 +143,24 @@ class BackupViewModel(
   private fun checkDestination(path: String = _state.value.destination) {
     val target = path.trim()
     if (target.isEmpty()) return
-    _state.update { it.copy(checkingDestination = true, destinationError = null) }
+    _state.update { it.copy(checkingDestination = true, destinationError = null, destinationNote = null) }
     viewModelScope.launch {
       try {
         val info = api.setDestination(target)
         info.transfer?.let(feed::put)
+        val detected = info.transfer?.takeIf { info.hasStatus }
+        val note =
+          when {
+            detected != null -> null
+            info.created -> Res.string.backup_folder_created
+            else -> Res.string.backup_folder_ready
+          }
         _state.update {
           it.copy(
             destination = info.path.ifBlank { target },
             checkingDestination = false,
-            detected = info.transfer?.takeIf { info.hasStatus },
+            detected = detected,
+            destinationNote = note,
           )
         }
       } catch (e: CancellationException) {
@@ -167,7 +175,7 @@ class BackupViewModel(
     val pick = pickFolder ?: return
     viewModelScope.launch {
       val chosen = pick(_state.value.destination) ?: return@launch
-      _state.update { it.copy(destination = chosen, destinationError = null, detected = null) }
+      _state.update { it.copy(destination = chosen, destinationError = null, destinationNote = null, detected = null) }
       checkDestination(chosen)
     }
   }

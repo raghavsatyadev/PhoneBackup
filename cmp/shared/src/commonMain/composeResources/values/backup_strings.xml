@@ -68,6 +68,9 @@
   <string name="backup_check_folder">Check folder</string>
   <string name="backup_detected_title">This folder has a backup already</string>
   <string name="backup_detected_body">%1$d of %2$d files copied from %3$s. Resume to copy the rest.</string>
+  <string name="backup_detected_done">All %1$d files from %2$s are copied. Starting a backup here again only copies new files.</string>
+  <string name="backup_folder_ready">Folder is ready. No backup in it yet.</string>
+  <string name="backup_folder_created">Folder created. It is ready for a backup.</string>
 
   <string name="backup_transfers_title">Backups</string>
   <string name="backup_transfers_empty">No backups yet.</string>

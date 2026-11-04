@@ -34,7 +34,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -200,7 +204,11 @@ internal fun DestinationCard(state: BackupUiState, canBrowse: Boolean, onEvent: 
       placeholder = { Text("D:\\PhoneBackup\\Phone") },
       singleLine = true,
       isError = state.destinationError != null,
-      supportingText = state.destinationError?.let { { Text(it) } },
+      supportingText =
+        state.destinationError?.let { { Text(it) } }
+          ?: state.destinationNote?.let { note ->
+            { Text(stringResource(note), color = MaterialTheme.colorScheme.primary) }
+          },
       keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
       keyboardActions = KeyboardActions(onDone = { onEvent(BackupEvent.CheckDestination) }),
       modifier = Modifier.fillMaxWidth(),
@@ -229,17 +237,20 @@ internal fun DestinationCard(state: BackupUiState, canBrowse: Boolean, onEvent: 
 /** A backup already saved in the chosen folder: offer to carry on with it. */
 @Composable
 private fun DetectedBackup(transfer: Transfer, onEvent: (BackupEvent) -> Unit) {
+  // The card can land below the visible part of the form; scroll it into view once shown.
+  val bringIntoView = remember { BringIntoViewRequester() }
+  LaunchedEffect(transfer.id) { bringIntoView.bringIntoView() }
+  val phone = transfer.deviceModel.ifBlank { transfer.activeSerial }
   ListItem(
     leadingContent = { Icon(painterResource(Res.drawable.ic_history), null) },
     headlineContent = { Text(stringResource(Res.string.backup_detected_title)) },
     supportingContent = {
       Text(
-        stringResource(
-          Res.string.backup_detected_body,
-          transfer.handledFiles,
-          transfer.totalFiles,
-          transfer.deviceModel.ifBlank { transfer.activeSerial },
-        )
+        if (transfer.status == Transfer.STATUS_COMPLETED) {
+          stringResource(Res.string.backup_detected_done, transfer.totalFiles, phone)
+        } else {
+          stringResource(Res.string.backup_detected_body, transfer.handledFiles, transfer.totalFiles, phone)
+        }
       )
     },
     trailingContent =
@@ -251,7 +262,7 @@ private fun DetectedBackup(transfer: Transfer, onEvent: (BackupEvent) -> Unit) {
         }
       } else null,
     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-    modifier = Modifier.fillMaxWidth(),
+    modifier = Modifier.fillMaxWidth().bringIntoViewRequester(bringIntoView),
   )
 }
 
