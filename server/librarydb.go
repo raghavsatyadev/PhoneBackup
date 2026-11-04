@@ -50,8 +50,8 @@ var (
 	libraryDBs   = map[string]*sql.DB{}
 )
 
-// libraryDB opens (once) the database for a photo folder, importing old sidecars the
-// first time.
+// libraryDB opens (once) the database for a photo folder, importing (then deleting) old
+// sidecars the first time.
 func libraryDB(root string) (*sql.DB, error) {
 	root = filepath.Clean(root)
 	libraryDBsMu.Lock()

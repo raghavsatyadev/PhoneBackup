@@ -45,8 +45,11 @@ func TestImportOldSidecarsOnce(t *testing.T) {
 	if m, _ := readPhotoMeta(root, "Trip", "a.jpg"); len(m.Tags) != 1 || m.Tags[0] != "new" {
 		t.Fatalf("re-import overwrote newer data: %+v", m)
 	}
-	if _, err := os.Stat(filepath.Join(side, "a.jpg.json")); err != nil {
-		t.Fatal("old sidecar files must be left in place")
+	for _, old := range []string{filepath.Join(side, "a.jpg.json"), filepath.Join(side, "a.jpg.vision.json"),
+		filepath.Join(root, sidecarDirName, legacyGroupsFile)} {
+		if _, err := os.Stat(old); !os.IsNotExist(err) {
+			t.Errorf("imported sidecar %s should be deleted", old)
+		}
 	}
 }
 
