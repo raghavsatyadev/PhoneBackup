@@ -10,11 +10,10 @@ package main
 // The best photo of a group is the sharpest, well-exposed one. Eyes-open is not checked
 // (that needs a face model).
 //
-// Results: <root>/.phonebackup/groups.json. Per-photo numbers are cached in
-// <root>/.phonebackup/features.json, keyed by size and mtime, so only new photos are read.
+// Results: the photo_groups table of library.db. Per-photo numbers are cached in its
+// features table, keyed by size and mtime, so only new photos are read.
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"image"
@@ -22,7 +21,6 @@ import (
 	"math"
 	"math/bits"
 	"os"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -32,8 +30,6 @@ const (
 	groupWindow   = 2 * time.Minute
 	groupNearBits = 10
 	groupSameBits = 4
-	groupsFile    = "groups.json"
-	featuresFile  = "features.json"
 )
 
 // photoFeatures are the numbers grouping needs for one photo.
@@ -53,12 +49,7 @@ type PhotoGroup struct {
 	Members []string `json:"members"`
 }
 
-type groupsDoc struct {
-	GeneratedAt time.Time    `json:"generatedAt"`
-	Groups      []PhotoGroup `json:"groups"`
-}
-
-// GroupIndex rebuilds groups.json in the background, a little after uploads stop.
+// GroupIndex rebuilds the groups in the background, a little after uploads stop.
 type GroupIndex struct {
 	Root  *RootDir
 	mu    sync.Mutex
@@ -81,7 +72,7 @@ func (g *GroupIndex) Schedule() {
 	g.timer = time.AfterFunc(20*time.Second, func() { g.Rebuild() })
 }
 
-// Rebuild computes missing features and rewrites groups.json.
+// Rebuild computes missing features and saves the groups.
 func (g *GroupIndex) Rebuild() (groups []PhotoGroup, photos int, err error) {
 	g.run.Lock()
 	defer g.run.Unlock()
@@ -99,9 +90,11 @@ func (g *GroupIndex) Rebuild() (groups []PhotoGroup, photos int, err error) {
 		}
 		feats[p.ID()] = computeFeatures(p)
 	}
-	saveFeatures(root, feats, lib)
+	if ferr := saveFeatures(root, feats, lib); ferr != nil {
+		fmt.Printf("⚠️  Groups: cannot save features: %v\n", ferr)
+	}
 	groups = groupPhotos(lib, feats)
-	err = writeJSONAtomic(filepath.Join(root, sidecarDirName, groupsFile), groupsDoc{time.Now(), groups})
+	err = saveGroups(root, groups)
 	return groups, len(lib), err
 }
 
@@ -286,34 +279,6 @@ func groupPhotos(lib []libPhoto, feats map[string]photoFeatures) []PhotoGroup {
 		groups[i].ID = fmt.Sprintf("g%d", i+1)
 	}
 	return groups
-}
-
-func loadFeatures(root string) map[string]photoFeatures {
-	m := map[string]photoFeatures{}
-	if b, err := os.ReadFile(filepath.Join(root, sidecarDirName, featuresFile)); err == nil {
-		_ = json.Unmarshal(b, &m)
-	}
-	return m
-}
-
-// saveFeatures keeps only entries for photos that still exist.
-func saveFeatures(root string, feats map[string]photoFeatures, lib []libPhoto) {
-	keep := make(map[string]photoFeatures, len(lib))
-	for _, p := range lib {
-		if f, ok := feats[p.ID()]; ok {
-			keep[p.ID()] = f
-		}
-	}
-	_ = writeJSONAtomic(filepath.Join(root, sidecarDirName, featuresFile), keep)
-}
-
-// loadGroups reads groups.json; missing means no groups yet.
-func loadGroups(root string) []PhotoGroup {
-	var doc groupsDoc
-	if b, err := os.ReadFile(filepath.Join(root, sidecarDirName, groupsFile)); err == nil {
-		_ = json.Unmarshal(b, &doc)
-	}
-	return doc.Groups
 }
 
 // handleGroup is `phonebackup group [-dir]`: rebuild groups now and print them.

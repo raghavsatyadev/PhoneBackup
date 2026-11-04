@@ -28,7 +28,7 @@ func TestCategoryPromptAndSchema(t *testing.T) {
 
 	root, albumDir := newAlbum(t, "d.png", 30, 30)
 	taken := time.Date(2025, 10, 21, 19, 0, 0, 0, time.UTC)
-	writeSidecar(albumDir, &PhotoMeta{FileName: "d.png", Album: "Trip", TakenAt: taken})
+	savePhotoMeta(albumDir, &PhotoMeta{FileName: "d.png", Album: "Trip", TakenAt: taken})
 	NewVisionWorker(NewRootDir(root), srv.URL, "m").process(visionJob{albumDir, "d.png"})
 
 	for _, want := range []string{"Festival:", "Baby:", "Navratri", "21 October 2025", `album named "Trip"`} {
@@ -40,14 +40,14 @@ func TestCategoryPromptAndSchema(t *testing.T) {
 	if len(enum) != len(defaultCategories) {
 		t.Errorf("schema enum = %v", enum)
 	}
-	m, _ := readVision(t, albumDir, "d.png")
+	m, _ := testVision(t, albumDir, "d.png")
 	if m.Category != "Festival" || m.Event != "Diwali" {
 		t.Fatalf("got category %q event %q", m.Category, m.Event)
 	}
 }
 
 func TestLoadCategoriesFromFile(t *testing.T) {
-	root := t.TempDir()
+	root := testDir(t)
 	if got := LoadCategories(root); len(got) != len(defaultCategories) {
 		t.Fatalf("want defaults without a file, got %d", len(got))
 	}
@@ -66,31 +66,30 @@ func TestLoadCategoriesFromFile(t *testing.T) {
 }
 
 func TestNeedsVisionRetagsOldResults(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "a.vision.json")
-	if !needsVision(path) {
+	root := testDir(t)
+	if !needsVision(root, "A", "a.jpg") {
 		t.Fatal("missing result needs analysis")
 	}
-	writeJSONAtomic(path, VisionMeta{Model: "m", Caption: "old, before categories"})
-	if !needsVision(path) {
+	saveVision(root, "A", "a.jpg", VisionMeta{Model: "m", Caption: "old, before categories"})
+	if !needsVision(root, "A", "a.jpg") {
 		t.Fatal("a result without a category should be redone")
 	}
-	writeJSONAtomic(path, VisionMeta{Model: "m", Error: "unsupported format"})
-	if needsVision(path) {
+	saveVision(root, "A", "a.jpg", VisionMeta{Model: "m", Error: "unsupported format"})
+	if needsVision(root, "A", "a.jpg") {
 		t.Fatal("permanent errors must not be retried")
 	}
-	writeJSONAtomic(path, VisionMeta{Model: "m", Category: "Trip"})
-	if needsVision(path) {
+	saveVision(root, "A", "a.jpg", VisionMeta{Model: "m", Category: "Trip"})
+	if needsVision(root, "A", "a.jpg") {
 		t.Fatal("a categorised result is done")
 	}
 }
 
 func TestOrganizePlanAndLink(t *testing.T) {
 	root, albumDir := newAlbum(t, "g.png", 20, 20)
-	writeSidecar(albumDir, &PhotoMeta{FileName: "g.png", Album: "Trip", TakenAt: time.Date(2024, 10, 5, 0, 0, 0, 0, time.UTC)})
-	writeJSONAtomic(visionPath(albumDir, "g.png"), VisionMeta{Model: "m", Category: "Festival", Event: "Navratri / Garba"})
+	savePhotoMeta(albumDir, &PhotoMeta{FileName: "g.png", Album: "Trip", TakenAt: time.Date(2024, 10, 5, 0, 0, 0, 0, time.UTC)})
+	saveVision(root, "Trip", "g.png", VisionMeta{Model: "m", Category: "Festival", Event: "Navratri / Garba"})
 	writePNG(t, filepath.Join(albumDir, "u.png"), 5, 5) // no vision result yet
-	writeSidecar(albumDir, &PhotoMeta{FileName: "u.png", Album: "Trip"})
+	savePhotoMeta(albumDir, &PhotoMeta{FileName: "u.png", Album: "Trip"})
 
 	items, untagged := planOrganize(root)
 	if len(items) != 1 || untagged != 1 {

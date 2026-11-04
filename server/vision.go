@@ -3,10 +3,9 @@ package main
 // Vision tagging for uploaded photos.
 //
 // When the server starts with -vision-model, every uploaded photo is sent to a local
-// vision LLM (Ollama by default) in the background. The result goes to its own file,
-// <album>/.phonebackup/<file>.vision.json, so upload retries that rewrite the main
-// sidecar never erase it. The user's own tags stay in the main sidecar; model tags
-// live only here.
+// vision LLM (Ollama by default) in the background. The result goes to the vision table
+// of library.db, apart from the upload metadata, so upload retries never erase it. The
+// user's own tags stay with the upload metadata; model tags live only in the vision table.
 
 import (
 	"encoding/json"
@@ -14,11 +13,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
-
-const visionSuffix = ".vision.json"
 
 // VisionMeta is what the model said about one photo.
 type VisionMeta struct {
@@ -77,14 +73,14 @@ func (v *VisionWorker) run() {
 }
 
 func (v *VisionWorker) process(job visionJob) {
-	out := visionPath(job.albumDir, job.fileName)
-	if !needsVision(out) {
+	root, album := filepath.Dir(job.albumDir), filepath.Base(job.albumDir)
+	if !needsVision(root, album, job.fileName) {
 		return // already analysed
 	}
-	hint := readPhotoHint(filepath.Dir(job.albumDir), job.albumDir, job.fileName)
+	hint := readPhotoHint(root, job.albumDir, job.fileName)
 	meta, err := v.Client.Analyze(filepath.Join(job.albumDir, job.fileName), hint)
 	if err != nil && !errors.Is(err, errUnsupported) && !errors.Is(err, errBadImage) {
-		// Model or server problem: leave no file so a later start retries.
+		// Model or server problem: save nothing so a later start retries.
 		fmt.Printf("⚠️  Vision: %s: %v\n", job.fileName, err)
 		return
 	}
@@ -92,57 +88,19 @@ func (v *VisionWorker) process(job visionJob) {
 		meta = VisionMeta{Model: v.Client.Model, Error: err.Error()}
 	}
 	meta.AnalyzedAt = time.Now()
-	if werr := writeJSONAtomic(out, meta); werr != nil {
+	if werr := saveVision(root, album, job.fileName, meta); werr != nil {
 		fmt.Printf("⚠️  Vision: cannot save result for %s: %v\n", job.fileName, werr)
 	}
 }
 
-// backfill queues every uploaded photo (one with a sidecar) that has no vision result.
+// backfill queues every uploaded photo that has no vision result.
 func (v *VisionWorker) backfill() {
 	root := v.Root.Get()
-	albums, err := os.ReadDir(root)
-	if err != nil {
-		return
-	}
-	for _, a := range albums {
-		if !a.IsDir() {
-			continue
-		}
-		albumDir := filepath.Join(root, a.Name())
-		entries, _ := os.ReadDir(filepath.Join(albumDir, sidecarDirName))
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, visionSuffix) {
-				continue
-			}
-			photo := strings.TrimSuffix(name, ".json")
-			if !needsVision(visionPath(albumDir, photo)) {
-				continue
-			}
-			if _, err := os.Stat(filepath.Join(albumDir, photo)); err != nil {
-				continue
-			}
-			v.queue <- visionJob{albumDir, photo}
+	for _, p := range scanLibrary(root) {
+		if needsVision(root, p.Album, p.File) {
+			v.queue <- visionJob{filepath.Join(root, p.Album), p.File}
 		}
 	}
-}
-
-// needsVision is true when there is no result yet, or an older one made before categories.
-// Permanent errors (unsupported files) are never retried.
-func needsVision(path string) bool {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return true
-	}
-	var m VisionMeta
-	if json.Unmarshal(b, &m) != nil {
-		return true
-	}
-	return m.Error == "" && m.Category == ""
-}
-
-func visionPath(albumDir, fileName string) string {
-	return filepath.Join(albumDir, sidecarDirName, fileName+visionSuffix)
 }
 
 // writeJSONAtomic writes via a temp file and rename so readers never see half a file.

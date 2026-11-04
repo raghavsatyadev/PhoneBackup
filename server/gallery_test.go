@@ -71,11 +71,11 @@ func addPhoto(t *testing.T, root, album, name string, img image.Image, taken tim
 	}
 	jpeg.Encode(f, img, &jpeg.Options{Quality: 92})
 	f.Close()
-	writeSidecar(dir, &PhotoMeta{FileName: name, Album: album, TakenAt: taken})
+	savePhotoMeta(dir, &PhotoMeta{FileName: name, Album: album, TakenAt: taken})
 }
 
 func TestGroupingFindsBurstAndPicksSharpest(t *testing.T) {
-	root := t.TempDir()
+	root := testDir(t)
 	t0 := time.Date(2025, 10, 21, 19, 0, 0, 0, time.UTC)
 	addPhoto(t, root, "Diwali", "a_blurry.jpg", scene(1, 0, true), t0)
 	addPhoto(t, root, "Diwali", "b_sharp.jpg", scene(1, 6, false), t0.Add(3*time.Second))
@@ -116,7 +116,7 @@ func TestGroupingFindsBurstAndPicksSharpest(t *testing.T) {
 }
 
 func TestGalleryEndpoints(t *testing.T) {
-	root := t.TempDir()
+	root := testDir(t)
 	addPhoto(t, root, "Trip", "p.jpg", scene(5, 0, false), time.Now())
 	u := &UploadServer{Root: NewRootDir(root), Token: "secret-token-123456"}
 	srv := httptest.NewServer(u.Handler())
@@ -182,7 +182,7 @@ func TestEXIFOrientation(t *testing.T) {
 }
 
 func TestGroupsStayWithinOneAlbum(t *testing.T) {
-	root := t.TempDir()
+	root := testDir(t)
 	t0 := time.Date(2025, 10, 21, 19, 0, 0, 0, time.UTC)
 	addPhoto(t, root, "Diwali", "a.jpg", scene(1, 0, false), t0)
 	addPhoto(t, root, "Wedding", "b.jpg", scene(1, 0, false), t0.Add(2*time.Second))

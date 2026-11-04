@@ -9,7 +9,6 @@ package main
 // so running it again is safe: files already in place are skipped.
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -66,33 +65,15 @@ func handleOrganize(args []string) {
 
 // planOrganize lists where each analysed photo goes, sorted by destination.
 func planOrganize(root string) (items []organizeItem, untagged int) {
-	albums, _ := os.ReadDir(root)
-	for _, a := range albums {
-		if !a.IsDir() || a.Name() == organizedDirName || strings.HasPrefix(a.Name(), ".") {
+	cats := LoadCategories(root)
+	for _, p := range scanLibrary(root) {
+		if p.Vision.Category == "" {
+			untagged++
 			continue
 		}
-		albumDir := filepath.Join(root, a.Name())
-		entries, _ := os.ReadDir(filepath.Join(albumDir, sidecarDirName))
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, visionSuffix) {
-				continue
-			}
-			photo := strings.TrimSuffix(name, ".json")
-			src := filepath.Join(albumDir, photo)
-			if _, err := os.Stat(src); err != nil {
-				continue
-			}
-			var vm VisionMeta
-			b, err := os.ReadFile(visionPath(albumDir, photo))
-			if err != nil || json.Unmarshal(b, &vm) != nil || vm.Category == "" {
-				untagged++
-				continue
-			}
-			hint := readPhotoHint(root, albumDir, photo)
-			items = append(items, organizeItem{Src: src, Dst: filepath.Join(root, organizedDirName,
-				organizeFolder(vm, hint), photo)})
-		}
+		hint := visionHint{Album: p.Album, TakenAt: p.Meta.TakenAt, Categories: cats}
+		items = append(items, organizeItem{Src: p.Path, Dst: filepath.Join(root, organizedDirName,
+			organizeFolder(p.Vision, hint), p.File)})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Dst < items[j].Dst })
 	return items, untagged

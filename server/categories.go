@@ -71,17 +71,11 @@ type visionHint struct {
 	Categories []Category
 }
 
-// readPhotoHint pulls album and date from the upload sidecar, if there is one.
+// readPhotoHint pulls the date from the upload record, if there is one.
 func readPhotoHint(root, albumDir, fileName string) visionHint {
 	h := visionHint{Album: filepath.Base(albumDir), Categories: LoadCategories(root)}
-	if b, err := os.ReadFile(filepath.Join(albumDir, sidecarDirName, fileName+".json")); err == nil {
-		var m PhotoMeta
-		if json.Unmarshal(b, &m) == nil {
-			h.TakenAt = m.TakenAt
-			if m.Album != "" {
-				h.Album = m.Album
-			}
-		}
+	if m, ok := readPhotoMeta(root, h.Album, fileName); ok {
+		h.TakenAt = m.TakenAt
 	}
 	return h
 }

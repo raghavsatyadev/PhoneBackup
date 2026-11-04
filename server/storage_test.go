@@ -24,12 +24,12 @@ func folderRequest(t *testing.T, u *UploadServer, remote, body string) *httptest
 }
 
 func TestFolderChangeOnlyFromThisPC(t *testing.T) {
-	cfg := t.TempDir()
+	cfg := testDir(t)
 	t.Setenv("AppData", cfg)         // os.UserConfigDir on Windows
 	t.Setenv("XDG_CONFIG_HOME", cfg) // and elsewhere
-	old := t.TempDir()
+	old := testDir(t)
 	u := &UploadServer{Root: NewRootDir(old), Token: "secret-token-123456"}
-	next := filepath.Join(t.TempDir(), "New Photos")
+	next := filepath.Join(testDir(t), "New Photos")
 	body, _ := json.Marshal(map[string]string{"path": next})
 
 	// A phone on the LAN with a valid token may read but not change it.

@@ -11,7 +11,7 @@ import (
 )
 
 func TestAlbumsNewestFirstWithoutHiddenFolders(t *testing.T) {
-	root := t.TempDir()
+	root := testDir(t)
 	now := time.Now()
 	for i, name := range []string{"Old Trip", "Diwali", organizedDirName, ".phonebackup"} {
 		dir := filepath.Join(root, name)

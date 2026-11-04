@@ -1,11 +1,10 @@
 package main
 
-// The photo library: every uploaded file that has a sidecar, with what we know about it.
+// The photo library: every uploaded file recorded in library.db, with what we know about it.
 // Shared by the gallery API and photo grouping. _Organized (hard links made by
 // `organize`) and dot-folders are skipped so no photo is listed twice.
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -40,36 +39,22 @@ func (p libPhoto) TakenAt() time.Time {
 	return p.ModTime
 }
 
-// scanLibrary lists every uploaded file under root.
+// scanLibrary lists every uploaded file under root that is still on disk.
 func scanLibrary(root string) []libPhoto {
 	var out []libPhoto
-	albums, _ := os.ReadDir(root)
-	for _, a := range albums {
-		if !a.IsDir() || !isAlbumName(a.Name()) {
+	for _, p := range libraryRows(root) {
+		if !isAlbumName(p.Album) {
 			continue
 		}
-		albumDir := filepath.Join(root, a.Name())
-		entries, _ := os.ReadDir(filepath.Join(albumDir, sidecarDirName))
-		for _, e := range entries {
-			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".json") || strings.HasSuffix(name, visionSuffix) {
-				continue
-			}
-			file := strings.TrimSuffix(name, ".json")
-			fi, err := os.Stat(filepath.Join(albumDir, file))
-			if err != nil || fi.IsDir() {
-				continue
-			}
-			p := libPhoto{Album: a.Name(), File: file, Path: filepath.Join(albumDir, file), Size: fi.Size(), ModTime: fi.ModTime()}
-			if b, err := os.ReadFile(filepath.Join(albumDir, sidecarDirName, name)); err == nil {
-				_ = json.Unmarshal(b, &p.Meta)
-			}
-			if b, err := os.ReadFile(visionPath(albumDir, file)); err == nil {
-				_ = json.Unmarshal(b, &p.Vision)
-			}
-			out = append(out, p)
+		p.Path = filepath.Join(root, p.Album, p.File)
+		fi, err := os.Stat(p.Path)
+		if err != nil || fi.IsDir() {
+			continue
 		}
+		p.Size, p.ModTime = fi.Size(), fi.ModTime()
+		out = append(out, p)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID() < out[j].ID() })
 	return out
 }
 

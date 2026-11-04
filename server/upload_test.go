@@ -33,7 +33,7 @@ func newUploadRequest(t *testing.T, token string, fields map[string]string, file
 }
 
 func TestUploadRejectsBadToken(t *testing.T) {
-	u := &UploadServer{Root: NewRootDir(t.TempDir()), Token: "secret-token-123456"}
+	u := &UploadServer{Root: NewRootDir(testDir(t)), Token: "secret-token-123456"}
 	for _, tok := range []string{"", "wrong"} {
 		rec := httptest.NewRecorder()
 		u.Handler().ServeHTTP(rec, newUploadRequest(t, tok, nil, "a.jpg", []byte("x")))
@@ -44,7 +44,7 @@ func TestUploadRejectsBadToken(t *testing.T) {
 }
 
 func TestUploadStoresFileMetaAndMtime(t *testing.T) {
-	root := t.TempDir()
+	root := testDir(t)
 	u := &UploadServer{Root: NewRootDir(root), Token: "secret-token-123456"}
 	taken := time.Date(2021, 7, 4, 10, 30, 0, 0, time.UTC)
 	fields := map[string]string{"album": "Goa Trip", "tags": "beach, family ,", "takenAt": taken.Format(time.RFC3339), "fileName": "IMG_1.jpg"}
@@ -63,12 +63,10 @@ func TestUploadStoresFileMetaAndMtime(t *testing.T) {
 	if !fi.ModTime().Equal(taken) {
 		t.Errorf("mtime = %v, want %v", fi.ModTime().UTC(), taken)
 	}
-	var meta PhotoMeta
-	b, err := os.ReadFile(filepath.Join(root, "Goa Trip", sidecarDirName, "IMG_1.jpg.json"))
-	if err != nil {
-		t.Fatal(err)
+	meta, ok := readPhotoMeta(root, "Goa Trip", "IMG_1.jpg")
+	if !ok {
+		t.Fatal("upload not recorded")
 	}
-	_ = json.Unmarshal(b, &meta)
 	if len(meta.Tags) != 2 || meta.Tags[0] != "beach" || meta.Tags[1] != "family" {
 		t.Errorf("tags = %v", meta.Tags)
 	}

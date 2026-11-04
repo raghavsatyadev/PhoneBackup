@@ -33,7 +33,7 @@ const (
 	defaultAlbumName = "Unsorted"
 )
 
-// PhotoMeta is the sidecar written next to every uploaded photo.
+// PhotoMeta is what we record for every uploaded photo (the photos table of library.db).
 type PhotoMeta struct {
 	FileName     string    `json:"fileName"`
 	OriginalName string    `json:"originalName"`
@@ -278,7 +278,7 @@ func (u *UploadServer) store(root string, src io.Reader, m *PhotoMeta) (uploadRe
 	} else {
 		m.TakenAt = m.UploadedAt
 	}
-	if err := writeSidecar(albumDir, m); err != nil {
+	if err := savePhotoMeta(albumDir, m); err != nil {
 		return uploadResult{}, err
 	}
 	return uploadResult{FileName: final, Album: m.Album, Skipped: skipped, Size: size}, nil
@@ -303,18 +303,6 @@ func pickTargetName(dir, name string, size int64) (string, bool) {
 		}
 	}
 	return fmt.Sprintf("%s-%d%s", base, time.Now().UnixNano(), ext), false
-}
-
-func writeSidecar(albumDir string, m *PhotoMeta) error {
-	dir := filepath.Join(albumDir, sidecarDirName)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	b, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dir, m.FileName+".json"), b, 0o644)
 }
 
 var (

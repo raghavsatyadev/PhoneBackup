@@ -50,7 +50,7 @@ func writePNG(t *testing.T, path string, w, h int) {
 
 // newAlbum makes <root>/Trip with one photo and its upload sidecar.
 func newAlbum(t *testing.T, photo string, w, h int) (root, albumDir string) {
-	root = t.TempDir()
+	root = testDir(t)
 	albumDir = filepath.Join(root, "Trip")
 	os.MkdirAll(filepath.Join(albumDir, sidecarDirName), 0o755)
 	if filepath.Ext(photo) == ".png" {
@@ -58,22 +58,22 @@ func newAlbum(t *testing.T, photo string, w, h int) (root, albumDir string) {
 	} else {
 		os.WriteFile(filepath.Join(albumDir, photo), []byte("not an image we read"), 0o644)
 	}
-	if err := writeSidecar(albumDir, &PhotoMeta{FileName: photo, Album: "Trip", Tags: []string{"mine"}}); err != nil {
+	if err := savePhotoMeta(albumDir, &PhotoMeta{FileName: photo, Album: "Trip", Tags: []string{"mine"}}); err != nil {
 		t.Fatal(err)
 	}
 	return root, albumDir
 }
 
-func readVision(t *testing.T, albumDir, photo string) (VisionMeta, bool) {
-	b, err := os.ReadFile(visionPath(albumDir, photo))
-	if err != nil {
-		return VisionMeta{}, false
-	}
-	var m VisionMeta
-	if err := json.Unmarshal(b, &m); err != nil {
-		t.Fatal(err)
-	}
-	return m, true
+func testVision(t *testing.T, albumDir, photo string) (VisionMeta, bool) {
+	t.Helper()
+	return readVision(filepath.Dir(albumDir), filepath.Base(albumDir), photo)
+}
+
+// testDir is a temp folder whose library.db is closed before it is removed.
+func testDir(t *testing.T) string {
+	dir := t.TempDir()
+	t.Cleanup(func() { closeLibraryDB(dir) })
+	return dir
 }
 
 func TestVisionProcessWritesSeparateFileAndShrinks(t *testing.T) {
@@ -84,7 +84,7 @@ func TestVisionProcessWritesSeparateFileAndShrinks(t *testing.T) {
 	v := NewVisionWorker(NewRootDir(root), srv.URL, "test-vl")
 	v.process(visionJob{albumDir, "big.png"})
 
-	m, ok := readVision(t, albumDir, "big.png")
+	m, ok := testVision(t, albumDir, "big.png")
 	if !ok || m.Caption != "A beach." || len(m.Tags) != 2 || m.Tags[0] != "beach" || m.Model != "test-vl" || m.AnalyzedAt.IsZero() {
 		t.Fatalf("unexpected vision result %+v (ok=%v)", m, ok)
 	}
@@ -92,9 +92,7 @@ func TestVisionProcessWritesSeparateFileAndShrinks(t *testing.T) {
 		t.Fatalf("model got a %dpx image, want %d", side, visionMaxSide)
 	}
 	// The upload sidecar keeps the user's own tags untouched.
-	b, _ := os.ReadFile(filepath.Join(albumDir, sidecarDirName, "big.png.json"))
-	var pm PhotoMeta
-	json.Unmarshal(b, &pm)
+	pm, _ := readPhotoMeta(root, "Trip", "big.png")
 	if len(pm.Tags) != 1 || pm.Tags[0] != "mine" {
 		t.Fatalf("user tags changed: %v", pm.Tags)
 	}
@@ -105,7 +103,7 @@ func TestVisionUnsupportedIsRecorded(t *testing.T) {
 	defer srv.Close()
 	root, albumDir := newAlbum(t, "notes.pdf", 0, 0)
 	NewVisionWorker(NewRootDir(root), srv.URL, "m").process(visionJob{albumDir, "notes.pdf"})
-	if m, ok := readVision(t, albumDir, "notes.pdf"); !ok || m.Error == "" {
+	if m, ok := testVision(t, albumDir, "notes.pdf"); !ok || m.Error == "" {
 		t.Fatalf("want an error result for a PDF, got %+v ok=%v", m, ok)
 	}
 }
@@ -130,7 +128,7 @@ func TestVisionServerDownLeavesNoFile(t *testing.T) {
 	srv.Close() // nothing listening
 	root, albumDir := newAlbum(t, "a.png", 50, 50)
 	NewVisionWorker(NewRootDir(root), srv.URL, "m").process(visionJob{albumDir, "a.png"})
-	if _, ok := readVision(t, albumDir, "a.png"); ok {
+	if _, ok := testVision(t, albumDir, "a.png"); ok {
 		t.Fatal("a transient failure must not write a result, so the next start retries")
 	}
 }
@@ -143,7 +141,7 @@ func TestVisionBackfillAndUploadRetryKeepResult(t *testing.T) {
 	v.Start()
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		if _, ok := readVision(t, albumDir, "cat.png"); ok {
+		if _, ok := testVision(t, albumDir, "cat.png"); ok {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -152,16 +150,16 @@ func TestVisionBackfillAndUploadRetryKeepResult(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	// A retried upload rewrites the main sidecar; the vision file must survive.
-	if err := writeSidecar(albumDir, &PhotoMeta{FileName: "cat.png", Album: "Trip"}); err != nil {
+	if err := savePhotoMeta(albumDir, &PhotoMeta{FileName: "cat.png", Album: "Trip"}); err != nil {
 		t.Fatal(err)
 	}
-	if m, ok := readVision(t, albumDir, "cat.png"); !ok || m.Caption != "Cat." {
+	if m, ok := testVision(t, albumDir, "cat.png"); !ok || m.Caption != "Cat." {
 		t.Fatalf("vision result lost after sidecar rewrite: %+v", m)
 	}
 }
 
 func TestPrepareVisionImageKeepsSmallJPEG(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "s.jpg")
+	path := filepath.Join(testDir(t), "s.jpg")
 	var buf bytes.Buffer
 	jpeg.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 100, 80)), nil)
 	os.WriteFile(path, buf.Bytes(), 0o644)

@@ -46,7 +46,7 @@ func (u *UploadServer) registerGallery(mux *http.ServeMux) {
 	mux.HandleFunc("/api/gallery/file", u.auth(u.handleGalleryFile))
 }
 
-// galleryPhotos lists the library newest first, with grouping from groups.json.
+// galleryPhotos lists the library newest first, with grouping from library.db.
 func galleryPhotos(root string) []GalleryPhoto {
 	type gi struct {
 		id   string
