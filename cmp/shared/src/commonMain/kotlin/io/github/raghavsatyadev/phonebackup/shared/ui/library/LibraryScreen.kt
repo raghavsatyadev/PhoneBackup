@@ -2,6 +2,21 @@
 
 package io.github.raghavsatyadev.phonebackup.shared.ui.library
 
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import io.github.raghavsatyadev.phonebackup.shared.nav.NavTransitions
+import io.github.raghavsatyadev.phonebackup.shared.nav.PredictiveBack
+import io.github.raghavsatyadev.phonebackup.shared.nav.rememberPredictiveBack
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -80,27 +95,55 @@ import org.jetbrains.compose.resources.stringResource
 fun LibraryRoute(viewModel: LibraryViewModel, onOpenSettings: () -> Unit) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val onEvent = viewModel::onEvent
-  // Back closes the open photo or album before it leaves the Library tab.
+  // Back closes the open photo or album before it leaves the Library tab; a back swipe drags it.
+  val backState = rememberNavigationEventState(NavigationEventInfo.None)
   NavigationBackHandler(
-    state = rememberNavigationEventState(NavigationEventInfo.None),
+    state = backState,
     isBackEnabled = state.viewer != null || state.bucket != null,
     onBackCompleted = { onEvent(LibraryEvent.Back) },
   )
   val viewer = state.viewer
-  if (viewer != null) {
-    PhotoViewer(state, viewer, onEvent)
-  } else {
-    LibraryScreen(state, onEvent, onOpenSettings)
+  val viewerBack = rememberPredictiveBack(target = viewer, back = null, backState)
+  val albumBack = rememberPredictiveBack(target = state.bucket, back = null, backState, enabled = viewer == null)
+  Box(Modifier.fillMaxSize()) {
+    // The grid stays under the viewer, so closing a photo shows it where it was.
+    LibraryScreen(
+      state,
+      onEvent,
+      onOpenSettings,
+      albumBack,
+      if (viewer != null) Modifier.clearAndSetSemantics {} else Modifier,
+    )
+    viewerBack.transition.AnimatedContent(
+      // No size animation: the viewer shrinks itself, the box around it must not clip it.
+      transitionSpec = {
+        when {
+          targetState != null ->
+            (fadeIn(tween(220)) + scaleIn(tween(260), initialScale = 0.92f)) togetherWith ExitTransition.None
+          viewerBack.byGesture -> EnterTransition.None togetherWith NavTransitions.predictiveExit(viewerBack.swipeEdge)
+          else -> EnterTransition.None togetherWith (fadeOut(tween(180)) + scaleOut(tween(180), targetScale = 0.94f))
+        } using null
+      },
+      contentKey = { it != null },
+    ) { open ->
+      if (open != null) PhotoViewer(state, open, onEvent)
+    }
   }
 }
 
 @Composable
-fun LibraryScreen(state: LibraryUiState, onEvent: (LibraryEvent) -> Unit, onOpenSettings: () -> Unit) {
+fun LibraryScreen(
+  state: LibraryUiState,
+  onEvent: (LibraryEvent) -> Unit,
+  onOpenSettings: () -> Unit,
+  albumBack: PredictiveBack<String?>,
+  modifier: Modifier = Modifier,
+) {
   val uncategorized = stringResource(Res.string.no_category)
   // The top bar slides away while scrolling so the photos get the screen.
   val scroll = TopAppBarDefaults.enterAlwaysScrollBehavior()
   Scaffold(
-    modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
+    modifier = modifier.nestedScroll(scroll.nestedScrollConnection),
     topBar = {
       TopAppBar(
         scrollBehavior = scroll,
@@ -136,18 +179,33 @@ fun LibraryScreen(state: LibraryUiState, onEvent: (LibraryEvent) -> Unit, onOpen
         )
         if (state.loading) LoadingIndicator(Modifier.padding(start = 12.dp).size(32.dp))
       }
-      val error = state.error
-      when {
-        error != null && state.photos.isEmpty() ->
-          Message(stringResource(Res.string.library_error, error)) {
-            Button(onClick = { onEvent(LibraryEvent.Refresh) }, shapes = ButtonDefaults.shapes()) {
-              Text(stringResource(Res.string.action_retry))
-            }
+      // Opening an album slides it in; Back (or a back swipe) slides it out.
+      albumBack.transition.AnimatedContent(
+        transitionSpec = {
+          when {
+            targetState != null -> NavTransitions.forward()
+            albumBack.byGesture -> NavTransitions.predictiveEnter() togetherWith NavTransitions.predictiveExit(albumBack.swipeEdge)
+            else -> NavTransitions.backward()
           }
-        state.photos.isEmpty() && !state.loading -> Message(stringResource(Res.string.library_empty)) {}
-        state.view != LibraryView.All && state.bucket == null ->
-          BucketGrid(state.config, state.buckets(uncategorized)) { onEvent(LibraryEvent.OpenBucket(it)) }
-        else -> PhotoGrid(state, state.gridPhotos(uncategorized), onEvent)
+        },
+        modifier = Modifier.fillMaxSize().clipToBounds(),
+      ) { bucket ->
+        val shown = state.copy(bucket = bucket)
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+          val error = shown.error
+          when {
+            error != null && shown.photos.isEmpty() ->
+              Message(stringResource(Res.string.library_error, error)) {
+                Button(onClick = { onEvent(LibraryEvent.Refresh) }, shapes = ButtonDefaults.shapes()) {
+                  Text(stringResource(Res.string.action_retry))
+                }
+              }
+            shown.photos.isEmpty() && !shown.loading -> Message(stringResource(Res.string.library_empty)) {}
+            shown.view != LibraryView.All && shown.bucket == null ->
+              BucketGrid(shown.config, shown.buckets(uncategorized)) { onEvent(LibraryEvent.OpenBucket(it)) }
+            else -> PhotoGrid(state, shown.gridPhotos(uncategorized), onEvent)
+          }
+        }
       }
     }
   }
