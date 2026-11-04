@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -118,7 +119,11 @@ func handleServer(args []string) {
 	uploadDir := fs.String("upload-dir", DefaultUploadRoot(), "Folder where photos shared from the Android app are saved (the PC app can change it)")
 	visionModel := fs.String("vision-model", "", "Ollama vision model that captions and tags uploaded photos (empty = off)")
 	visionURL := fs.String("vision-url", DefaultVisionURL, "Ollama server address for -vision-model")
+	exitWithParent := fs.Bool("exit-with-parent", false, "Quit when standard input closes (used by the PC app, so the server never outlives it)")
 	_ = fs.Parse(args)
+	if *exitWithParent {
+		go exitWhenStdinCloses()
+	}
 
 	if *uploadPort > 0 {
 		root := NewRootDir(*uploadDir)
@@ -429,4 +434,10 @@ func truncateStr(s string, max int) string {
 		return s
 	}
 	return "..." + s[len(s)-(max-3):]
+}
+
+// exitWhenStdinCloses ends the process once the parent app closes our stdin or dies.
+func exitWhenStdinCloses() {
+	_, _ = io.Copy(io.Discard, os.Stdin)
+	os.Exit(0)
 }

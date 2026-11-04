@@ -29,6 +29,7 @@ exifinterface = "1.4.2"
 kotlinx-datetime = "0.8.0"
 koin = "4.2.2"
 ktor = "3.6.1"
+jna = "5.19.1"
 lifecycle-mp = "2.11.0"
 navigation3-mp = "1.2.0"
 navigationevent-mp = "1.1.0"
@@ -36,6 +37,7 @@ serialization = "1.12.0"
 telephoto = "0.19.0"
 
 [libraries]
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
 compose-activity = { module = "androidx.activity:activity-compose", version.ref = "activity" }

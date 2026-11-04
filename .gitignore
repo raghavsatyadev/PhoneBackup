@@ -65,3 +65,4 @@ cmp/local.properties
 .env.local
 .env.*.local
 package-lock.json
+*.msi

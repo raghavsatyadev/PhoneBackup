@@ -29,7 +29,7 @@ private val LOCAL_ADDRESS = "127.0.0.1:${ServerConfig.DEFAULT_PORT}"
 
 private fun read(f: File): String? = runCatching { f.readText().trim() }.getOrNull()?.ifBlank { null }
 
-private fun configDir(): File? {
+internal fun configDir(): File? {
   val os = System.getProperty("os.name").orEmpty().lowercase()
   val home = System.getProperty("user.home")
   val path =
