@@ -32,6 +32,8 @@ val copyServer by
   }
 
 tasks.matching { it.name == "prepareAppResources" }.configureEach { dependsOn(copyServer) }
+// The packaging tasks do not track app resources, so a new server alone would not repackage.
+tasks.matching { it.name.startsWith("createDistributable") || it.name.startsWith("createReleaseDistributable") || it.name.startsWith("package") }.configureEach { inputs.files(copyServer) }
 
 compose.desktop {
   application {

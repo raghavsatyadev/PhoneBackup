@@ -12,6 +12,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -19,6 +21,9 @@ import (
 // fakeOllama answers /api/chat and records the decoded size of the image it got.
 func fakeOllama(t *testing.T, reply string, gotSide *int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/generate" {
+			return // unload
+		}
 		var req ollamaChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Messages) != 1 || len(req.Messages[0].Images) != 1 {
 			t.Errorf("bad request: %v", err)
@@ -173,4 +178,53 @@ func TestParseVisionReplyRejectsProse(t *testing.T) {
 	if _, err := parseVisionReply("m", "I cannot see an image."); err == nil {
 		t.Fatal("want an error for a reply without JSON")
 	}
+}
+
+// The model is unloaded once the queue stays empty, and loaded again by the next photo.
+func TestVisionUnloadsWhenIdleAndReloads(t *testing.T) {
+	var mu sync.Mutex
+	var calls []string // "chat" or "unload"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if r.URL.Path == "/api/generate" {
+			var req map[string]any
+			json.NewDecoder(r.Body).Decode(&req)
+			if req["keep_alive"] != float64(0) || req["model"] != "m" {
+				t.Errorf("bad unload request: %v", req)
+			}
+			calls = append(calls, "unload")
+			return
+		}
+		calls = append(calls, "chat")
+		json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"content": `{"caption":"Cat.","tags":["cat"],"text":""}`}})
+	}))
+	defer srv.Close()
+	root, albumDir := newAlbum(t, "a.png", 40, 40)
+	writePNG(t, filepath.Join(albumDir, "b.png"), 40, 40)
+	v := NewVisionWorker(NewRootDir(root), srv.URL, "m")
+	v.IdleUnload = 50 * time.Millisecond
+	go v.run()
+	waitFor := func(want []string) {
+		deadline := time.Now().Add(3 * time.Second)
+		for {
+			mu.Lock()
+			got := strings.Join(calls, ",")
+			mu.Unlock()
+			if got == strings.Join(want, ",") {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("calls = %s, want %v", got, want)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	v.Enqueue(albumDir, "a.png")
+	waitFor([]string{"chat", "unload"})
+	v.Enqueue(albumDir, "b.png")
+	waitFor([]string{"chat", "unload", "chat", "unload"})
+	// Nothing new: no extra unload.
+	time.Sleep(150 * time.Millisecond)
+	waitFor([]string{"chat", "unload", "chat", "unload"})
 }

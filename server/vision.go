@@ -34,19 +34,26 @@ var errUnsupported = errors.New("unsupported format")
 
 type visionJob struct{ albumDir, fileName string }
 
-// VisionWorker analyses photos one at a time (the GPU is the bottleneck).
+// VisionWorker analyses photos one at a time (the GPU is the bottleneck). The model is loaded
+// by the first request and unloaded once the queue has been empty for IdleUnload, so it only
+// holds GPU memory while there is work.
 type VisionWorker struct {
-	Root   *RootDir
-	Client *OllamaVision
-	queue  chan visionJob
+	Root       *RootDir
+	Client     *OllamaVision
+	IdleUnload time.Duration
+	queue      chan visionJob
 }
+
+// defaultIdleUnload is short, but long enough that photos arriving one after another from a
+// phone don't reload the model for each one.
+const defaultIdleUnload = 10 * time.Second
 
 // NewVisionWorker returns nil when model is empty, which turns the feature off.
 func NewVisionWorker(root *RootDir, url, model string) *VisionWorker {
 	if model == "" {
 		return nil
 	}
-	return &VisionWorker{Root: root, Client: NewOllamaVision(url, model), queue: make(chan visionJob, 256)}
+	return &VisionWorker{Root: root, Client: NewOllamaVision(url, model), IdleUnload: defaultIdleUnload, queue: make(chan visionJob, 256)}
 }
 
 // Start runs the worker and queues photos uploaded earlier that have no result yet.
@@ -67,8 +74,19 @@ func (v *VisionWorker) Enqueue(albumDir, fileName string) {
 }
 
 func (v *VisionWorker) run() {
-	for job := range v.queue {
-		v.process(job)
+	idle := time.NewTimer(time.Hour)
+	idle.Stop()
+	for {
+		select {
+		case job := <-v.queue:
+			idle.Stop()
+			v.process(job)
+			if len(v.queue) == 0 {
+				idle.Reset(v.IdleUnload)
+			}
+		case <-idle.C:
+			v.Client.Unload()
+		}
 	}
 }
 

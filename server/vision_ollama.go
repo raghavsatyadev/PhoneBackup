@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -37,9 +38,10 @@ var errBadImage = errors.New("cannot decode image")
 
 // OllamaVision talks to one model on one Ollama server.
 type OllamaVision struct {
-	URL   string
-	Model string
-	HTTP  *http.Client
+	URL    string
+	Model  string
+	HTTP   *http.Client
+	loaded atomic.Bool // a request went out since the last unload
 }
 
 func NewOllamaVision(url, model string) *OllamaVision {
@@ -106,10 +108,11 @@ func (o *OllamaVision) Analyze(path string, hint visionHint) (VisionMeta, error)
 		encoded[i] = base64.StdEncoding.EncodeToString(img)
 	}
 	body, _ := json.Marshal(ollamaChatRequest{
-		Model: o.Model, KeepAlive: "5m", Format: visionSchema(hint.Categories),
+		Model: o.Model, KeepAlive: visionKeepAlive, Format: visionSchema(hint.Categories),
 		Options:  map[string]any{"num_ctx": visionNumCtx},
 		Messages: []ollamaMessage{{Role: "user", Content: prompt, Images: encoded}},
 	})
+	o.loaded.Store(true)
 	resp, err := o.HTTP.Post(o.URL+"/api/chat", "application/json", bytes.NewReader(body))
 	if err != nil {
 		return VisionMeta{}, err
@@ -135,6 +138,25 @@ func (o *OllamaVision) Analyze(path string, hint visionHint) (VisionMeta, error)
 		}
 	}
 	return m, err
+}
+
+// visionKeepAlive is a backstop: Ollama drops the model by itself if Unload never arrives
+// (the server was closed mid-batch, say).
+const visionKeepAlive = "2m"
+
+// Unload asks Ollama to free the model now (keep_alive 0). The next Analyze loads it again.
+func (o *OllamaVision) Unload() {
+	if !o.loaded.Swap(false) {
+		return
+	}
+	body, _ := json.Marshal(map[string]any{"model": o.Model, "keep_alive": 0})
+	resp, err := o.HTTP.Post(o.URL+"/api/generate", "application/json", bytes.NewReader(body))
+	if err != nil {
+		fmt.Printf("⚠️  Vision: cannot unload %s: %v\n", o.Model, err)
+		return
+	}
+	resp.Body.Close()
+	fmt.Printf("🧠 Vision: done, unloaded %s\n", o.Model)
 }
 
 // prepareVisionInput returns the images to send and whether they are video frames.
