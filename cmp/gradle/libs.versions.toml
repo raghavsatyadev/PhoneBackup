@@ -14,7 +14,7 @@ versionName = "0.1.0"
 
 # Plugins (same as SCUS, already cached on this machine)
 agp = "9.6.0-alpha02"
-kotlin = "2.5.0-Beta1"
+kotlin = "2.5.0-Beta2"
 
 # Libraries
 activity = "1.14.0-alpha03"
@@ -27,10 +27,12 @@ compose-ui = "1.13.0-beta02"
 coroutines = "1.11.0"
 exifinterface = "1.4.2"
 kotlinx-datetime = "0.8.0"
-ktor = "3.6.0"
+koin = "4.2.2"
+ktor = "3.6.1"
 lifecycle-mp = "2.11.0"
 navigation3-mp = "1.2.0"
-serialization = "1.12.0-RC"
+navigationevent-mp = "1.1.0"
+serialization = "1.12.0"
 telephoto = "0.19.0"
 
 [libraries]
@@ -42,6 +44,7 @@ compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = 
 compose-ui-mp = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
 compose-foundation-mp = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
 compose-material3-mp = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3-mp" }
+compose-material3-navigation-suite-mp = { module = "org.jetbrains.compose.material3:material3-adaptive-navigation-suite", version.ref = "compose-material3-mp" }
 compose-components-resources-mp = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
 compose-ui-tooling-preview-mp = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
 compose-runtime-mp = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
@@ -49,6 +52,7 @@ compose-runtime-mp = { module = "org.jetbrains.compose.runtime:runtime", version
 lifecycle-viewmodel-compose-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle-mp" }
 lifecycle-runtime-compose-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-mp" }
 lifecycle-viewmodel-navigation3-mp = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle-mp" }
+navigationevent-compose-mp = { module = "org.jetbrains.androidx.navigationevent:navigationevent-compose", version.ref = "navigationevent-mp" }
 navigation3-ui-mp = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3-mp" }
 
 coil-compose-mp = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
@@ -67,6 +71,11 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
+koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
+koin-compose-navigation3 = { module = "io.insert-koin:koin-compose-navigation3", version.ref = "koin" }
+
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 
 [plugins]
@@ -84,6 +93,7 @@ compose-mp = [
     "compose-ui-tooling-preview-mp",
     "compose-foundation-mp",
     "compose-material3-mp",
+    "compose-material3-navigation-suite-mp",
     "compose-components-resources-mp",
     "compose-runtime-mp",
 ]
@@ -92,4 +102,5 @@ lifecycle-mp = [
     "lifecycle-runtime-compose-mp",
     "lifecycle-viewmodel-navigation3-mp",
     "navigation3-ui-mp",
+    "navigationevent-compose-mp",
 ]

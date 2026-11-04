@@ -45,7 +45,6 @@ class MainActivity : ComponentActivity() {
     if (savedInstanceState == null && !fromHistory) handleShare(intent)
     setContent {
       App(
-        graph = app.graph,
         onPickPhotos = { picker.launch(arrayOf("image/*")) },
       )
     }
@@ -87,7 +86,7 @@ class MainActivity : ComponentActivity() {
   private fun askForNotificationsOnFirstTransfer() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
     lifecycleScope.launch {
-      app.graph.queue.progress.filterNotNull().first()
+      app.queue.progress.filterNotNull().first()
       val granted =
         ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) ==
           PackageManager.PERMISSION_GRANTED

@@ -9,7 +9,12 @@ import android.provider.Settings
 import android.os.Bundle
 import io.github.raghavsatyadev.phonebackup.discovery.LocalNetworkAccess
 import io.github.raghavsatyadev.phonebackup.discovery.NsdDiscovery
-import io.github.raghavsatyadev.phonebackup.shared.AppGraph
+import io.github.raghavsatyadev.phonebackup.shared.appModule
+import io.github.raghavsatyadev.phonebackup.shared.data.ShareQueue
+import kotlinx.coroutines.CoroutineScope
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import org.koin.core.context.startKoin
 import io.github.raghavsatyadev.phonebackup.shared.data.AndroidPhotoImporter
 import io.github.raghavsatyadev.phonebackup.shared.data.AndroidKeyValueStore
 import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
@@ -19,9 +24,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class PhoneBackupApp : Application() {
-  lateinit var graph: AppGraph
-    private set
+class PhoneBackupApp : Application(), KoinComponent {
+  val queue: ShareQueue by inject()
+  private val scope: CoroutineScope by inject()
 
   lateinit var localNetwork: LocalNetworkAccess
     private set
@@ -32,27 +37,29 @@ class PhoneBackupApp : Application() {
   override fun onCreate() {
     super.onCreate()
     localNetwork = LocalNetworkAccess(this)
-    graph =
-      AppGraph(
-        settings = SettingsStore(AndroidKeyValueStore(this)),
-        discovery = NsdDiscovery(getSystemService(NsdManager::class.java), localNetwork),
-        deviceName = deviceName(),
+    startKoin {
+      modules(
+        appModule(
+          settings = SettingsStore(AndroidKeyValueStore(this@PhoneBackupApp)),
+          discovery = NsdDiscovery(getSystemService(NsdManager::class.java), localNetwork),
+          deviceName = deviceName(),
+        )
       )
+    }
     importer = AndroidPhotoImporter(this)
     TransferNotifications.createChannels(this)
     registerActivityLifecycleCallbacks(VisibilityTracker())
-    val queue = graph.queue
     // Restoring isn't a transfer: no progress, so no service.
-    graph.scope.launch { queue.add(importer.restore()) }
+    scope.launch { queue.add(importer.restore()) }
     // Any copy or upload (always started by the user while the app is open) gets the
     // foreground service and its progress notification.
-    graph.scope.launch {
+    scope.launch {
       queue.progress.map { it != null }.distinctUntilChanged().collect { busy ->
         if (busy) TransferService.start(this@PhoneBackupApp)
       }
     }
     // The screen shows its own message; the notification is for when the app is closed.
-    graph.scope.launch {
+    scope.launch {
       queue.summaries.collect { if (startedActivities == 0) TransferNotifications.postSummary(this@PhoneBackupApp, it) }
     }
   }
@@ -63,8 +70,7 @@ class PhoneBackupApp : Application() {
 
   fun importPhotos(uris: List<Uri>) {
     if (uris.isEmpty()) return
-    val queue = graph.queue
-    graph.scope.launch { queue.add(queue.copying(uris.size) { report -> importer.import(uris, report) }) }
+    scope.launch { queue.add(queue.copying(uris.size) { report -> importer.import(uris, report) }) }
   }
 
   private inner class VisibilityTracker : ActivityLifecycleCallbacks {
