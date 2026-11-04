@@ -14,20 +14,6 @@ import (
 	"time"
 )
 
-func getPublicDir() string {
-	if fi, err := os.Stat("public"); err == nil && fi.IsDir() {
-		return "public"
-	}
-	exe, err := os.Executable()
-	if err == nil {
-		p := filepath.Join(filepath.Dir(exe), "public")
-		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-			return p
-		}
-	}
-	return "public"
-}
-
 func getPort() int {
 	if p := os.Getenv("PORT"); p != "" {
 		if val, err := strconv.Atoi(p); err == nil {
@@ -39,23 +25,23 @@ func getPort() int {
 
 func printUsage() {
 	fmt.Print(`
-📱 PhoneBackup (Go Edition) — Native Android Backup & Web Dashboard
-(Zero Terminal Window Flashing • Native Windows Process • Resumable • Built-in Web UI)
+📱 PhoneBackup (Go Edition) — Native Android Backup Engine
+(Zero Terminal Window Flashing • Native Windows Process • Resumable • Used by the PhoneBackup PC app)
 
 USAGE:
   phonebackup.exe [command] [arguments]
 
 COMMANDS:
-  server [-port 9876]              Start Web Dashboard (default on http://localhost:9876)
-         [-lan]                    Also open the dashboard to your local network (no login)
+  server [-port 9876]              Start the backup engine for the PC app (API on 127.0.0.1:9876)
+         [-lan]                    Also open the API to your local network (no login)
          [-upload-port 9877]       Photo upload API for the Android app (0 disables it)
          [-upload-dir <folder>]    Where shared photos are saved (default: chosen in the PC app, else D:\PhoneBackup)
          [-vision-model <name>]    Ollama vision model that captions and tags uploads (off by default)
          [-vision-url <url>]       Ollama address (default: http://127.0.0.1:11434)
-  resume <path-or-file>            Resume backup from phonebackup_status.json (CLI + Web UI)
+  resume <path-or-file>            Resume backup from phonebackup_status.json (CLI; also shown in the PC app)
                                    Example: phonebackup.exe resume D:\Backups\Phone
                                    Example: phonebackup.exe resume D:\Backups\Phone\phonebackup_status.json
-  backup [flags]                   Start a new backup (CLI + live Web UI)
+  backup [flags]                   Start a new backup (CLI; also shown in the PC app)
   organize [-dir <folder>]         Sort tagged uploads into _Organized\<Category>\<Year Event>
            [-apply]                (dry run unless -apply; hard-links, never moves originals)
   group [-dir <folder>]            Find similar photos (bursts, retakes) and pick the best of each
@@ -67,7 +53,7 @@ BACKUP FLAGS:
   -sources string                  Comma-separated Android source folders (e.g. /sdcard/DCIM,/sdcard/Recordings)
   -device string                   ADB device serial (optional, defaults to first connected device)
   -include string                  Comma-separated file patterns (e.g. *.jpg,*.mp4)
-  -port int                        Web Dashboard port (default: 9876)
+  -port int                        Backup API port (default: 9876)
 `)
 }
 
@@ -114,7 +100,7 @@ func main() {
 func handleServer(args []string) {
 	fs := flag.NewFlagSet("server", flag.ExitOnError)
 	port := fs.Int("port", getPort(), "HTTP server port")
-	lan := fs.Bool("lan", false, "Open the Web Dashboard to your local network (default: this PC only)")
+	lan := fs.Bool("lan", false, "Open the backup API to your local network (default: this PC only)")
 	uploadPort := fs.Int("upload-port", 9877, "Photo upload API port for the Android app (0 disables it)")
 	uploadDir := fs.String("upload-dir", DefaultUploadRoot(), "Folder where photos shared from the Android app are saved (the PC app can change it)")
 	visionModel := fs.String("vision-model", "", "Ollama vision model that captions and tags uploaded photos (empty = off)")
@@ -127,7 +113,7 @@ func handleServer(args []string) {
 
 	if *uploadPort > 0 {
 		root := NewRootDir(*uploadDir)
-		startPhotoUploads(*uploadPort, root, NewVisionWorker(root, *visionURL, *visionModel), *port)
+		startPhotoUploads(*uploadPort, root, NewVisionWorker(root, *visionURL, *visionModel))
 	}
 
 	// Auto-detect and register phonebackup_status.json if present in current directory
@@ -143,14 +129,14 @@ func handleServer(args []string) {
 		}
 	}
 
-	StartWebServer(*port, *lan, getPublicDir(), initial)
+	StartWebServer(*port, *lan, initial)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	fmt.Println("Server is running. Open http://localhost:" + strconv.Itoa(*port) + " in your browser.")
+	fmt.Println("Server is running. Open the PhoneBackup PC app to use it (API on port " + strconv.Itoa(*port) + ").")
 	fmt.Println("Press Ctrl+C to stop.")
 	<-sigChan
-	fmt.Println("\nStopping PhoneBackup Web Dashboard...")
+	fmt.Println("\nStopping PhoneBackup engine...")
 }
 
 func handleDevices() {
@@ -218,7 +204,7 @@ func handleResume(target string) {
 			fmt.Printf("Notice: Associating connected device [%s] (%s, HW: %s) to this backup\n", matchedSerial, model, hw)
 			status.AddDeviceSerial(matchedSerial)
 			if hw != "" {
-				status.AddDeviceSerial(hw)
+				status.AddKnownSerial(hw)
 			}
 			if model != "" && status.DeviceModel == "" {
 				status.DeviceModel = model
@@ -236,8 +222,8 @@ func handleResume(target string) {
 	}
 
 	port := getPort()
-	// Start complementary Web Dashboard
-	StartWebServer(port, false, getPublicDir(), status)
+	// Start the backup API so the PC app shows this backup
+	StartWebServer(port, false, status)
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
 	fmt.Println("║         📱 PhoneBackup (Go) — Resuming Transfer            ║")
@@ -247,9 +233,9 @@ func handleResume(target string) {
 	fmt.Printf("║ Sources:     %-46s║\n", truncateStr(strings.Join(status.Sources, ", "), 46))
 	fmt.Printf("║ Cataloged:   %-46s║\n", fmt.Sprintf("%d files (%s)", status.TotalFiles, FormatBytes(status.TotalBytes)))
 	fmt.Printf("║ Progress:    %-46s║\n", fmt.Sprintf("%d done, %d skipped, %d failed", status.DoneFiles, status.SkippedFiles, status.FailedFiles))
-	fmt.Printf("║ Web UI:      http://localhost:%-29d║\n", port)
+	fmt.Printf("║ Backup API:  http://localhost:%-29d║\n", port)
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
-	fmt.Println("Running with ZERO popup windows. View live dashboard in your browser.")
+	fmt.Println("Running with ZERO popup windows. Watch it live in the PhoneBackup PC app.")
 	fmt.Println("Press Ctrl+C to pause cleanly.")
 
 	executeEngineWithGracefulShutdown(status)
@@ -261,8 +247,8 @@ func handleBackup(args []string) {
 	sourcesStr := fs.String("sources", "", "Comma-separated Android source folders")
 	device := fs.String("device", "", "ADB device serial")
 	includeStr := fs.String("include", "", "Comma-separated file patterns (e.g. *.jpg,*.mp4)")
-	port := fs.Int("port", getPort(), "Web Dashboard port")
-	lan := fs.Bool("lan", false, "Open the Web Dashboard to your local network (default: this PC only)")
+	port := fs.Int("port", getPort(), "Backup API port")
+	lan := fs.Bool("lan", false, "Open the backup API to your local network (default: this PC only)")
 	_ = fs.Parse(args)
 
 	if *dest == "" || *sourcesStr == "" {
@@ -321,8 +307,8 @@ func handleBackup(args []string) {
 		status.DeviceModel = m
 	}
 
-	// Start complementary Web Dashboard
-	StartWebServer(*port, *lan, getPublicDir(), status)
+	// Start the backup API so the PC app shows this backup
+	StartWebServer(*port, *lan, status)
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
 	fmt.Println("║         📱 PhoneBackup (Go) — New Transfer                ║")
@@ -330,9 +316,9 @@ func handleBackup(args []string) {
 	fmt.Printf("║ Destination: %-46s║\n", truncateStr(status.LocalDir, 46))
 	fmt.Printf("║ Device:      %-46s║\n", truncateStr(status.ActiveSerial, 46))
 	fmt.Printf("║ Sources:     %-46s║\n", truncateStr(strings.Join(status.Sources, ", "), 46))
-	fmt.Printf("║ Web UI:      http://localhost:%-29d║\n", *port)
+	fmt.Printf("║ Backup API:  http://localhost:%-29d║\n", *port)
 	fmt.Println("╚════════════════════════════════════════════════════════════╝")
-	fmt.Println("Running with ZERO popup windows. View live dashboard in your browser.")
+	fmt.Println("Running with ZERO popup windows. Watch it live in the PhoneBackup PC app.")
 	fmt.Println("Press Ctrl+C to pause cleanly.")
 
 	executeEngineWithGracefulShutdown(status)
@@ -355,7 +341,7 @@ func executeEngineWithGracefulShutdown(status *BackupStatus) {
 	lastUpdate := time.Now()
 
 	err := RunTransferEngine(ctx, status, func(s *BackupStatus) {
-		// Broadcast update to Web Dashboard WebSocket clients
+		// Broadcast update to WebSocket clients (the PC app)
 		BroadcastTransferUpdate(s)
 
 		if time.Since(lastUpdate) < 300*time.Millisecond && s.Status == StatusRunning {

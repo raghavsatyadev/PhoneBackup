@@ -9,7 +9,8 @@ import java.net.Socket
  * it to show its window and quits, so opening the app from the Start menu brings it out of the tray.
  */
 object SingleInstance {
-  private const val PORT = 9878
+  // PHONEBACKUP_INSTANCE_PORT lets a dev build run beside the installed app.
+  private val PORT = System.getenv("PHONEBACKUP_INSTANCE_PORT")?.toIntOrNull() ?: 9878
   private const val SHOW = "show"
 
   /** True when this is the only copy; [onShow] runs (on a background thread) when another starts. */

@@ -3,13 +3,13 @@ package main
 // Pairing lets the Android app get the upload token without typing it.
 //
 // The app posts its name to /api/pair/request on the upload port and gets back a private
-// poll secret and a 6-digit code it shows on screen. The PC dashboard shows the same code
+// poll secret and a 6-digit code it shows on screen. The PhoneBackup PC app shows the same code
 // with "Allow this phone to connect?". After Allow, the app's next /api/pair/status call
 // returns the token once.
 //
 // Two handles keep the token safe: the poll secret only ever goes to the phone that asked,
-// and the dashboard (which may be open to the LAN with -lan) only sees a separate decision
-// id. Allow/Deny is accepted only from this PC.
+// and the PC app (through the backup API, which may be open to the LAN with -lan) only sees a
+// separate decision id. Allow/Deny is accepted only from this PC.
 
 import (
 	"crypto/rand"
@@ -47,7 +47,7 @@ type pairRequest struct {
 	expires        time.Time
 }
 
-// PairView is what the dashboard sees: never the poll secret or the token.
+// PairView is what the PC app sees: never the poll secret or the token.
 type PairView struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -59,9 +59,8 @@ type PairView struct {
 
 // PairBook holds the open pairing requests in memory.
 type PairBook struct {
-	Token        string
-	DashboardURL string
-	Now          func() time.Time
+	Token string
+	Now   func() time.Time
 	// Notify is told about every new, decided or expired request (nil in tests).
 	Notify func(event string, v PairView)
 
@@ -73,7 +72,7 @@ func NewPairBook(token string) *PairBook {
 	return &PairBook{Token: token, Now: time.Now, reqs: map[string]*pairRequest{}}
 }
 
-// pairs is set when the upload API starts; the dashboard's Allow button uses it.
+// pairs is set when the upload API starts; the PC app's Allow button uses it.
 var pairs *PairBook
 
 func (b *PairBook) view(r *pairRequest) PairView {
@@ -208,7 +207,7 @@ func (b *PairBook) registerPhone(mux *http.ServeMux) {
 	})
 }
 
-// registerPairDashboard adds Allow/Deny to the dashboard mux, for this PC only.
+// registerPairDashboard adds Allow/Deny to the backup API, for this PC only (the PC app asks).
 func registerPairDashboard(mux *http.ServeMux) {
 	mux.HandleFunc("/api/pair/pending", func(w http.ResponseWriter, r *http.Request) {
 		if !fromThisPC(w, r) {
@@ -307,11 +306,11 @@ func sixDigits() string {
 	return fmt.Sprintf("%06d", n.Int64())
 }
 
-// announcePair prints requests to the console and pushes them to open dashboards.
-func announcePair(event string, v PairView, dashboardURL string) {
+// announcePair prints requests to the console and pushes them to WebSocket clients.
+func announcePair(event string, v PairView) {
 	if event == "request" {
-		fmt.Printf("📱 %q (%s) wants to send photos. Code %s %s. Allow it at %s\n",
-			v.Name, v.IP, v.Code[:3], v.Code[3:], dashboardURL)
+		fmt.Printf("📱 %q (%s) wants to send photos. Code %s %s. Allow it in the PhoneBackup PC app.\n",
+			v.Name, v.IP, v.Code[:3], v.Code[3:])
 	}
 	wsHub.Broadcast(map[string]any{"type": "pair_" + event, "pair": v})
 }

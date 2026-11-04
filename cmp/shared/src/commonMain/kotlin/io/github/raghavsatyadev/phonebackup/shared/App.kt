@@ -25,6 +25,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import io.github.raghavsatyadev.phonebackup.shared.nav.AppNavDisplay
+import io.github.raghavsatyadev.phonebackup.shared.nav.BackupKey
 import io.github.raghavsatyadev.phonebackup.shared.nav.LibraryKey
 import io.github.raghavsatyadev.phonebackup.shared.nav.NavConfig
 import io.github.raghavsatyadev.phonebackup.shared.nav.ServersKey
@@ -33,6 +34,8 @@ import io.github.raghavsatyadev.phonebackup.shared.nav.selectTab
 import io.github.raghavsatyadev.phonebackup.shared.resources.Res
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_cloud_upload
 import io.github.raghavsatyadev.phonebackup.shared.resources.ic_photo_library
+import io.github.raghavsatyadev.phonebackup.shared.resources.ic_smartphone
+import io.github.raghavsatyadev.phonebackup.shared.resources.tab_backup
 import io.github.raghavsatyadev.phonebackup.shared.resources.no_category
 import io.github.raghavsatyadev.phonebackup.shared.resources.tab_library
 import io.github.raghavsatyadev.phonebackup.shared.resources.tab_share
@@ -96,7 +99,10 @@ fun App(onPickPhotos: () -> Unit) {
   }
 }
 
-/** The desktop app: the photo viewer and the PC list only (sharing happens on the phone). */
+/**
+ * The desktop app: the photo viewer and the PC list (sharing happens on the phone), plus the
+ * Backup tab, whose screens the desktop module registers.
+ */
 @Composable
 fun ViewerApp() {
   AppTheme {
@@ -104,7 +110,17 @@ fun ViewerApp() {
     val library = libraryViewModel()
     val backStack = rememberStartStack(LibraryKey)
     WatchNetwork()
-    AppNavDisplay(AppNav(backStack, library, share = null, onPickPhotos = {}))
+    // The rail stays on every screen; Backup's own screens keep the Backup item lit.
+    val inBackup = BackupKey in backStack
+    NavigationSuiteScaffold(
+      navigationItems = {
+        Tab(backStack, LibraryKey, Res.drawable.ic_photo_library, Res.string.tab_library, LibraryKey, selected = !inBackup)
+        Tab(backStack, BackupKey, Res.drawable.ic_smartphone, Res.string.tab_backup, LibraryKey, selected = inBackup)
+      },
+      navigationSuiteType = NavigationSuiteType.NavigationRail,
+    ) {
+      AppNavDisplay(AppNav(backStack, library, share = null, onPickPhotos = {}))
+    }
   }
 }
 
@@ -138,10 +154,12 @@ private fun Tab(
   key: NavKey,
   icon: DrawableResource,
   label: StringResource,
+  home: NavKey = ShareKey,
+  selected: Boolean = backStack.lastOrNull() == key,
 ) {
   NavigationSuiteItem(
-    selected = backStack.lastOrNull() == key,
-    onClick = { backStack.selectTab(key) },
+    selected = selected,
+    onClick = { backStack.selectTab(key, home) },
     icon = { Icon(painterResource(icon), null) },
     label = { Text(stringResource(label)) },
   )

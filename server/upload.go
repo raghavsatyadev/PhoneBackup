@@ -110,16 +110,14 @@ func StartUploadServer(port int, root *RootDir, token string, vision *VisionWork
 }
 
 // startPhotoUploads loads the token, starts the listener and prints what to type into the app.
-// dashboardPort is where the phone gets allowed (printed with each pairing request).
-func startPhotoUploads(port int, root *RootDir, vision *VisionWorker, dashboardPort int) {
+func startPhotoUploads(port int, root *RootDir, vision *VisionWorker) {
 	token, tokenPath, err := LoadOrCreateUploadToken()
 	if err != nil {
 		fmt.Printf("⚠️  Photo uploads disabled: cannot create token: %v\n", err)
 		return
 	}
 	pairs = NewPairBook(token)
-	dashURL := fmt.Sprintf("http://localhost:%d", dashboardPort)
-	pairs.Notify = func(event string, v PairView) { announcePair(event, v, dashURL) }
+	pairs.Notify = announcePair
 	StartUploadServer(port, root, token, vision, pairs)
 	fmt.Println("📷 Photo uploads from the Android app:")
 	for _, ip := range lanIPv4s() {

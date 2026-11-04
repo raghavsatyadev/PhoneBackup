@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The PC app's Backup tab (phone folders copied over ADB by the server on this PC). -->
+<resources>
+  <string name="tab_backup">Backup</string>
+  <string name="backup_title">Back up a phone</string>
+  <string name="backup_import">Open status file</string>
+  <string name="backup_start">Start backup</string>
+  <string name="backup_offline_title">Backup engine not running</string>
+  <string name="backup_offline_body">Waiting for the PhoneBackup server on this PC. It starts with the app; reconnecting…</string>
+
+  <string name="backup_phone_title">Phone</string>
+  <string name="backup_reload">Refresh</string>
+  <string name="backup_no_phone">No phone found. Plug it in with USB debugging on, or connect over Wi-Fi.</string>
+  <string name="backup_phone_usb">USB · %1$s</string>
+  <string name="backup_phone_wifi">Wi-Fi · %1$s</string>
+  <string name="backup_disconnect">Disconnect</string>
+  <string name="backup_connect_wifi">Connect over Wi-Fi</string>
+  <string name="backup_wifi_title">Connect over Wi-Fi</string>
+  <string name="backup_wifi_body">Turn on Wireless debugging on the phone (Developer options) and type the IP address and port it shows.</string>
+  <string name="backup_wifi_label">Address</string>
+  <string name="backup_wifi_connect">Connect</string>
+  <string name="backup_wifi_connecting">Connecting…</string>
+  <string name="backup_wifi_connected">Connected to %1$s</string>
+
+  <string name="backup_sources_title">Phone folders</string>
+  <string name="backup_sources_empty">Pick the folders to copy.</string>
+  <string name="backup_clear">Clear</string>
+  <string name="backup_remove">Remove</string>
+  <string name="backup_quick_title">Common folders</string>
+  <string name="backup_quick_dcim">Camera</string>
+  <string name="backup_quick_pictures">Pictures</string>
+  <string name="backup_quick_whatsapp">WhatsApp</string>
+  <string name="backup_quick_movies">Movies</string>
+  <string name="backup_quick_music">Music</string>
+  <string name="backup_quick_download">Downloads</string>
+  <string name="backup_quick_documents">Documents</string>
+  <string name="backup_quick_recordings">Recordings</string>
+  <string name="backup_path_label">Folder path on the phone</string>
+  <string name="backup_add">Add</string>
+  <string name="backup_browse_phone">Browse phone</string>
+
+  <string name="backup_folders_title">Phone folders</string>
+  <string name="backup_folders_error">Couldn\'t open this folder: %1$s</string>
+  <string name="backup_folder_up">Up one folder</string>
+  <string name="backup_folder_open">Open</string>
+  <string name="backup_folder_empty">No folders here.</string>
+  <plurals name="backup_folder_files">
+    <item quantity="one">%1$d file here (files go with their folder)</item>
+    <item quantity="other">%1$d files here (files go with their folder)</item>
+  </plurals>
+  <plurals name="backup_add_folders">
+    <item quantity="one">Add %1$d folder</item>
+    <item quantity="other">Add %1$d folders</item>
+  </plurals>
+
+  <string name="backup_filter_title">Which files</string>
+  <string name="backup_filter_all">Everything</string>
+  <string name="backup_filter_photos">Photos</string>
+  <string name="backup_filter_videos">Videos</string>
+  <string name="backup_filter_docs">Documents</string>
+  <string name="backup_filter_music">Music</string>
+  <string name="backup_filter_label">File name patterns</string>
+  <string name="backup_filter_hint">Comma-separated, like *.jpg, *.mp4. Empty copies everything.</string>
+
+  <string name="backup_destination_title">PC folder</string>
+  <string name="backup_destination_label">Back up into</string>
+  <string name="backup_browse_pc">Choose folder</string>
+  <string name="backup_check_folder">Check folder</string>
+  <string name="backup_detected_title">This folder has a backup already</string>
+  <string name="backup_detected_body">%1$d of %2$d files copied from %3$s. Resume to copy the rest.</string>
+
+  <string name="backup_transfers_title">Backups</string>
+  <string name="backup_transfers_empty">No backups yet.</string>
+  <string name="backup_started">Backup started</string>
+  <string name="backup_retrying">Retrying %1$s files</string>
+  <string name="backup_imported">Backup loaded from the status file</string>
+  <string name="backup_error">Something went wrong: %1$s</string>
+
+  <string name="backup_status_pending">Waiting</string>
+  <string name="backup_status_scanning">Scanning</string>
+  <string name="backup_status_running">Copying</string>
+  <string name="backup_status_paused">Paused</string>
+  <string name="backup_status_completed">Done</string>
+  <string name="backup_status_failed">Failed</string>
+  <string name="backup_status_cancelled">Cancelled</string>
+
+  <string name="backup_files_count">%1$d / %2$d files</string>
+  <string name="backup_bytes_count">%1$s / %2$s</string>
+  <string name="backup_eta">%1$s left</string>
+  <string name="backup_skipped_count">%1$d already there</string>
+  <string name="backup_failed_count">%1$d failed</string>
+  <string name="backup_current_file">Copying %1$s</string>
+  <string name="backup_pause">Pause</string>
+  <string name="backup_resume">Resume</string>
+  <string name="backup_retry_failed">Retry failed</string>
+  <string name="backup_cancel">Cancel backup</string>
+  <string name="backup_details">Details</string>
+  <string name="backup_cancel_title">Cancel this backup?</string>
+  <string name="backup_cancel_body">Files already copied stay on the PC. You can start again later and it skips them.</string>
+  <string name="backup_keep_going">Keep going</string>
+
+  <string name="backup_mismatch_title">Different phone selected</string>
+  <string name="backup_mismatch_body">This backup was made from %1$s, but %2$s is selected. Carry on copying from %2$s?</string>
+  <string name="backup_mismatch_confirm">Use %1$s</string>
+
+  <string name="backup_transfer_title">Backup details</string>
+  <string name="backup_transfer_gone">This backup is no longer on the server.</string>
+  <string name="backup_speed_title">Speed</string>
+  <string name="backup_speed_peak">Peak %1$s</string>
+  <string name="backup_failed_title">Failed files</string>
+  <string name="backup_log_title">Activity</string>
+  <string name="backup_log_empty">Nothing yet.</string>
+  <string name="backup_log_failed">Failed</string>
+  <string name="backup_log_skipped">Skipped</string>
+  <string name="backup_log_done">Copied</string>
+</resources>

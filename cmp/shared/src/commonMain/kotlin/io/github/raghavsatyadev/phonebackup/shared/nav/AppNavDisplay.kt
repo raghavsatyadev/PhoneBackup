@@ -27,7 +27,7 @@ fun AppNavDisplay(nav: AppNav) {
     remember(screens) {
       { key: NavKey ->
         val entry = screens(key)
-        if (key == ShareKey || key == LibraryKey) {
+        if (key == ShareKey || key == LibraryKey || key == BackupKey) {
           NavEntry(key, entry.contentKey, entry.metadata + NavTransitions.TabMetadata) { entry.Content() }
         } else {
           entry

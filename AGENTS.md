@@ -6,10 +6,10 @@ This document maps out the architecture, file organization, key structs, functio
 
 ## 🏗️ Architecture & Technology Overview
 
-PhoneBackup is a **lightweight, native Go-based Android backup solution** with an embedded **HTTP Web Dashboard** and CLI interface.
+PhoneBackup is a **lightweight, native Go-based Android backup solution** with a local HTTP/WebSocket API, a CLI, and a Compose PC app (`cmp/desktopApp`) as its only UI.
 
 - **Language & Runtime:** Go (1.21+) using standard library (`net/http`, `os/exec`, `path/filepath`, `sync`, etc.).
-- **Frontend Dashboard:** Pure Vanilla HTML5 / CSS3 / JavaScript (in `public/index.html`), dark mode, zero external node dependencies, real-time updates via Server-Sent Events (SSE).
+- **UI:** the PC app's Backup tab (section 7) calls the API on `127.0.0.1:9876`; live updates come over the `/ws` WebSocket. There is no web page (the old `public/` dashboard was removed).
 - **Android Interop:** Native ADB (`adb.exe`) wrapper configured with Windows-specific `CREATE_NO_WINDOW` flags (eliminating terminal window popup flashing).
 - **Resumability:** Atomic status tracking saved in `phonebackup_status.json` inside each backup destination directory.
 
@@ -17,7 +17,7 @@ PhoneBackup is a **lightweight, native Go-based Android backup solution** with a
 
 ## 📂 File Map & Component Responsibilities
 
-Two top-level folders: `server/` holds the Go module (sections 1–6 and 8, paths below are relative to it) and `cmp/` holds the Compose Multiplatform app (section 7).
+Two top-level folders: `server/` holds the Go module (sections 1–4, 6 and 8, paths below are relative to it) and `cmp/` holds the Compose Multiplatform app (section 7).
 
 ### 1. `adb.go` — Low-Level ADB Process & Hardware Communication
 Handles all communication with `adb.exe` and connected Android devices.
@@ -54,29 +54,29 @@ Core orchestration engine managing file scanning, transfer progress, rate calcul
 - **Key Functions:**
   - `LoadStatusFile(target)`: Reads and deserializes `phonebackup_status.json` from a file path or directory. Handles path normalization, quotes, and fallback names.
   - `SaveStatusFile()`: Writes `phonebackup_status.json` atomically in the target local backup folder.
-  - `ExecuteBackup(status, sseChan)`: Main worker loop. Scans files, skips identical local files (same size & modification time), executes pulls, updates metrics, broadcasts progress via SSE, and preserves failure logs.
+  - `ExecuteBackup(status, sseChan)`: Main worker loop. Scans files, skips identical local files (same size & modification time), executes pulls, updates metrics, broadcasts progress over `/ws`, and preserves failure logs.
+  - `AddDeviceSerial(serial)` makes an adb serial (USB or `ip:port`) the active one; `AddKnownSerial(hw)` only remembers another ID (the hardware `ro.serialno`). Never make the hardware serial active: on emulators and Wi-Fi adb doesn't accept it and the backup copies 0 files.
   - `RetryFailedFiles(status, sseChan)`: Re-queues failed items from `FailedList` without having to re-scan or re-transfer completed files.
   - `PauseTransfer(id)` / `ResumeTransfer(id)` / `CancelTransfer(id)`: Thread-safe transfer lifecycle controls.
 
 ---
 
-### 3. `server.go` — Embedded HTTP REST & Server-Sent Events (SSE) Server
-Provides the web dashboard API backend and serves static assets.
+### 3. `server.go` — Local HTTP REST & WebSocket API (used by the PC app)
+The backup API behind the PC app's Backup tab. No web page: `/` answers 404.
 
 - **Key Functions:**
-  - `StartWebServer(port, lan, publicDir, initialStatus)`: Registers routes, serves static assets from `public/`, and starts the HTTP listener on `127.0.0.1` (all interfaces only when `lan` is true, see `dashboardAddr`). The `/ws` socket uses the default same-origin check.
-- **REST Endpoints:**
-  - `GET /api/devices`: Returns connected Android devices.
-  - `POST /api/device/connect-wifi`, `POST /api/device/disconnect-wifi`, `POST /api/device/pair`: Wireless ADB controls.
-  - `GET /api/device/browse?serial=...&path=...`: Browse remote Android filesystem folders.
-  - `GET /api/local/browse?path=...`: Browse local PC drives (A: to Z:) and directories.
-  - `POST /api/local/set-destination`: Validate or create destination directory; checks and auto-detects existing `phonebackup_status.json`.
-  - `GET /api/transfer/list`: Get list of all active/recent transfers.
-  - `POST /api/transfer/start`: Start a new backup transfer.
-  - `POST /api/transfer/pause/{id}`, `POST /api/transfer/resume/{id}`, `POST /api/transfer/cancel/{id}`: Transfer control actions.
-  - `POST /api/transfer/retry-failed/{id}`: Re-run failed files.
-  - `POST /api/transfer/import`: Import a `phonebackup_status.json` file or resume from disk.
-  - `GET /api/transfer/events`: Real-time SSE stream sending transfer progress and system events.
+  - `StartWebServer(port, lan, initialStatus)`: Registers routes and starts the listener on `127.0.0.1` (all interfaces only when `lan` is true, see `dashboardAddr`). The `/ws` socket uses gorilla's default origin check (refuses other websites; the PC app sends no Origin).
+- **Endpoints:**
+  - `GET /ws`: WebSocket; sends `{"type":"transfer_update","transfer":...}` on every change, and `pair_*` events.
+  - `GET /api/devices`: Connected Android devices.
+  - `POST /api/devices/connect {address}`, `POST /api/devices/disconnect {address}`: Wi-Fi ADB (`adb connect`). There is no `adb pair` route.
+  - `GET /api/browse?serial=...&path=...`: Browse remote Android folders.
+  - `POST /api/local/set-destination`: Validate or create the PC folder; detects an existing `phonebackup_status.json`.
+  - `GET /api/transfer/list`, `GET /api/transfer/{id}`, `GET /api/transfer/{id}/failed`.
+  - `POST /api/transfer/start {active_serial, sources, local_dir, filters.include}`.
+  - `POST /api/transfer/pause/{id}`, `resume/{id}`, `cancel/{id}`, `retry-failed/{id}`.
+  - `POST /api/transfer/import`: Load a `phonebackup_status.json` (file or folder) to resume.
+  - `GET /api/pair/pending`, `POST /api/pair/decide` (this PC only, see section 6).
 
 ---
 
@@ -86,7 +86,7 @@ Entry point for command-line execution and service bootstrapping.
 - **Supported CLI Commands:**
   - `phonebackup.exe server [-port 9876] [-lan] [-upload-port 9877] [-upload-dir <dir>] [-vision-model <name>] [-vision-url <url>] [-exit-with-parent]`: Starts the Web UI server (default port `9876`, this PC only; `-lan` opens it to the network). `backup` also takes `-lan`. Auto-detects and registers `phonebackup_status.json` in the current folder if present. Also starts the photo upload API for the Android app on `-upload-port` (0 disables it), saving to `-upload-dir` (default: the folder saved by the PC app, else `D:\PhoneBackup` on Windows, `~/Pictures/PhoneBackup` elsewhere; an explicit flag wins for that run). `-exit-with-parent` quits when stdin closes (the PC app uses it so the server never outlives the app).
   - `phonebackup.exe resume <path-or-file>`: Directly resumes a backup given a folder or status JSON file.
-  - `phonebackup.exe backup -dest <dir> -sources <dirs> [-device <serial>] [-include <patterns>]`: Starts a CLI backup while simultaneously broadcasting to the web dashboard.
+  - `phonebackup.exe backup -dest <dir> -sources <dirs> [-device <serial>] [-include <patterns>]`: Starts a CLI backup while broadcasting progress over the API (the PC app shows it).
   - `phonebackup.exe organize [-dir <upload-dir>] [-apply]`: Sorts vision-tagged uploads into `_Organized/<Category>/<Year Event>` (dry run unless `-apply`).
   - `phonebackup.exe group [-dir <upload-dir>]`: Rebuilds and prints similar-photo groups.
   - `phonebackup.exe devices`: Lists connected Android devices in the console.
@@ -94,19 +94,8 @@ Entry point for command-line execution and service bootstrapping.
 
 ---
 
-### 5. `public/index.html` — Responsive Web Dashboard UI
-Complete single-page application containing UI layout, CSS stylesheets, and client JavaScript.
-
-- **Major UI Sections:**
-  - **Header & Device Bar:** Connection status, device selector, refresh button, and "Connect WiFi" modal trigger.
-  - **Source Folder Picker (Left Panel):** Expandable Android filesystem tree, preset buttons (Photos, Videos, Docs, Music), quick-source shortcut pills (DCIM, Pictures, WhatsApp, etc.), and custom path paste modal.
-  - **Destination Picker (Right Panel):** Direct path input with auto-complete/validation, Windows drive browser (`C:\`, `D:\`, etc.), breadcrumb navigation, detected backup banner (`statusDetectedBanner`), and status file badge (`Load & Resume`).
-  - **Active Transfers List:** Cards displaying progress bars, speed badges, elapsed & ETA timers, pause/resume/cancel buttons.
-  - **Expanded Transfer Modal (`#transferModal`):** Live Speed Chart (HTML5 Canvas), activity stream log, and **Failed Files Viewer** with one-click **Retry Failed Files** button.
-  - **Device Mismatch Warning Modal (`#deviceMismatchModal`):** Prompts user in layman's terms if resuming a paused backup while a different phone is selected in the top dropdown, allowing safe device switching or cancellation.
-- **Frontend Architecture Notes:**
-  - Uses `data-*` attributes (`data-lpath`, `data-statuspath`) when passing Windows file paths in DOM elements to prevent JavaScript string escape consumption of backslashes (`\`).
-  - Dropdown device selection (`selectedDevice`) is bound to transfers on start/resume and verified upon resumption.
+### 5. (removed) Web dashboard
+`public/index.html` and `public/pair.js` were removed; the PC app (section 7) replaces them. Don't add static web pages back.
 
 ---
 
@@ -115,7 +104,7 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
 
 - **Auth:** `Authorization: Bearer <token>`. Token is random, created once by `LoadOrCreateUploadToken()` and stored at `os.UserConfigDir()/phonebackup/upload_token`; compared in constant time. The token and LAN addresses are printed in the console banner only.
 - **Discovery (`announce.go`):** announces mDNS `_phonebackup._tcp` on the upload port (zeroconf, LAN interfaces with a private IPv4). TXT: `id` (random, stable, `os.UserConfigDir()/phonebackup/server_id`), `name` (hostname), `v=1`. Never the token.
-- **Pairing (`pair.go`, `public/pair.js`):** the app `POST /api/pair/request {name}` on the upload port (no auth) and gets a private poll secret + 6-digit code; it polls `POST /api/pair/status {secret}` until `allowed` (returns the token), `denied` or `expired`. The dashboard lists `GET /api/pair/pending` and answers with `POST /api/pair/decide {id, allow}` (this PC only, `fromThisPC`), showing an "Allow this phone to connect?" dialog with the same code. The poll secret never goes to the dashboard or WS broadcasts. Tests: `pair_test.go`.
+- **Pairing (`pair.go`):** the app `POST /api/pair/request {name}` on the upload port (no auth) and gets a private poll secret + 6-digit code; it polls `POST /api/pair/status {secret}` until `allowed` (returns the token), `denied` or `expired`. The PC app lists `GET /api/pair/pending` and answers with `POST /api/pair/decide {id, allow}` (this PC only, `fromThisPC`), showing an "Allow this phone to connect?" dialog with the same code. The poll secret never goes to the PC app or WS broadcasts. Tests: `pair_test.go`.
 - **Endpoints:**
   - `GET /api/upload/ping`: Returns `{ok, host, id, uploadRoot}` (the app's "Test connection").
   - `GET /api/upload/albums`: `{albums}`, album folder names newest first (`listAlbums` in `library.go`; skips `_Organized` and dot-folders). The share screen's `AlbumField` offers them in a menu and still takes a new name (the folder is made on the first upload).
@@ -133,7 +122,7 @@ Separate LAN listener (default `:9877`) that receives photos shared from the And
 ---
 
 ### 7. `cmp/` — Android Share App and Desktop Viewer (Kotlin Multiplatform + Compose Multiplatform)
-Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gradlew :androidApp:assembleDebug` (release: `:androidApp:assembleRelease`, signed with the key named in `~/.gradle/gradle.properties` `PHONEBACKUP_*`, shrunk with R8); tests: `./gradlew :shared:testAndroidHostTest`. PC app: `./gradlew :desktopApp:run`; installer: `:desktopApp:packageMsi` (build `server/phonebackup.exe` first; it and `public/` are copied into the app resources by `copyServer`).
+Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gradlew :androidApp:assembleDebug` (release: `:androidApp:assembleRelease`, signed with the key named in `~/.gradle/gradle.properties` `PHONEBACKUP_*`, shrunk with R8); tests: `./gradlew :shared:testAndroidHostTest`. PC app: `./gradlew :desktopApp:run`; installer: `:desktopApp:packageMsi` (build `server/phonebackup.exe` first; `copyServer` copies it into the app resources).
 
 - `androidApp/transfer/`: `TransferService` (foreground service, type `dataSync`) runs while `ShareQueue.progress` is non-null, mirroring copy/upload progress into an Android 16 `ProgressStyle` Live Update (`TransferNotifications`, throttled to 500 ms, Cancel action while uploading). A result notification posts only when no activity is visible.
 - `androidApp/`: Thin Android shell. `MainActivity` receives `ACTION_SEND` / `ACTION_SEND_MULTIPLE` for `image/*` (onCreate + onNewIntent) and the in-app picker (`OpenMultipleDocuments`, the system file picker: the photo picker hides real file names); `PhoneBackupApp` starts Koin (`appModule` in `AppModule.kt`, screens in `AppNavigation.kt`) and imports/restores photos on an app-wide scope.
@@ -151,8 +140,9 @@ Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gra
 - `shared/androidMain`: `AndroidPhotoImporter` copies shared URIs to `filesDir/incoming/<id>/` straight away (the URI grant ends with the activity) and detects the date: EXIF DateTimeOriginal → EXIF DateTime → MediaStore DATE_TAKEN → file name → file time → now. Saves `.meta` so the queue survives restarts. Local copies are deleted after upload. Also `AndroidSettingsStore`, OkHttp client, `BackHandler`.
 - `androidApp/discovery/`: `NsdDiscovery` (NSD `_phonebackup._tcp`, IPv4, resolve with a 5 s timeout) searches only while the app is resumed and only after `LocalNetworkAccess` has the Android 17 `ACCESS_LOCAL_NETWORK` answer (asked once from `MainActivity`).
 - Launcher icon: adaptive vectors `res/drawable/ic_launcher_{background,foreground,monochrome}.xml` + `res/mipmap-anydpi/`. App name is `appName` in `gradle/libs.versions.toml`.
-- PC app (`desktopApp/`), the always-on Windows app: `server/ServerProcess.kt` starts the bundled `phonebackup.exe server -exit-with-parent` hidden (output in `%APPDATA%/phonebackup/server.log`, extra flags from `server_args` there), or uses a server already answering on :9876. Closing the window hides it to the tray (`system/TrayIcon.kt`, Win32 via JNA, ported from JobFinder); tray menu Open / Open web dashboard / Quit (Quit stops the server). `system/SingleInstance.kt` (loopback port 9878) makes a second launch show the window. `system/StartAtSignIn.kt` writes the HKCU Run value `PhoneBackup` with `--minimized` (packaged exe only). `server/PairingRequests.kt` polls `/api/pair/pending` and `PairingDialog` asks Allow/Deny in the window, with a tray notification.
+- PC app (`desktopApp/`), the always-on Windows app: `server/ServerProcess.kt` starts the bundled `phonebackup.exe server -exit-with-parent` hidden (output in `%APPDATA%/phonebackup/server.log`, extra flags from `server_args` there), or uses a server already answering on :9876. Closing the window hides it to the tray (`system/TrayIcon.kt`, Win32 via JNA, ported from JobFinder); tray menu Open / Quit (Quit stops the server). `system/SingleInstance.kt` (loopback port 9878, or `PHONEBACKUP_INSTANCE_PORT` so a dev build runs beside the installed app) makes a second launch show the window. `system/StartAtSignIn.kt` writes the HKCU Run value `PhoneBackup` with `--minimized` (packaged exe only). `server/PairingRequests.kt` polls `/api/pair/pending` and `PairingDialog` asks Allow/Deny in the window, with a tray notification.
 - `desktopApp/` + `shared/desktopMain`: Compose Desktop window running `ViewerApp`; `DesktopSettingsStore` keeps the PC list in Java Preferences. `ThisPc.kt` adds "This PC" (`127.0.0.1:9877`) on start from the server's `upload_token` and `server_id` in the config folder, no pairing. `appModule(pickFolder = ...)` (desktop only, kept in `DeviceInfo`, `JFileChooser`) turns on the photo-folder card (`ui/settings/FolderCard.kt`, `FolderViewModel`) in that PC's edit screen. Window icon: `desktopApp/src/main/resources/icon.svg` (same art as the launcher icon).
+- Backup tab (`shared/desktopMain/.../backup/`, desktop only, replaces the web dashboard): `backupModule(pickFolder, pickStatusFile)` in `BackupModule.kt` (Koin; `BackupViewModel` is a `single` so the form and live list survive tab switches) with Nav3 keys `BackupKey`, `PhoneFoldersKey(serial)`, `TransferKey(id)`. `data/BackupApi.kt` (Ktor client for section 3), `data/BackupModels.kt`, `data/TransferFeed.kt` (WebSocket `/ws` with reconnect, merges updates and keeps speed samples). Screens: `BackupScreen` + `BackupSetupCards` (phone with USB/Wi-Fi connect, phone folders with quick picks, filters, PC folder with existing-backup detection), `PhoneFoldersScreen` (multi-select folder browser), `TransferCard` / `TransferScreen` (progress, speed chart, failed files, activity; pause/resume/cancel/retry; `BackupDialogs` confirms cancel and asks when the selected phone differs from the backup's). Strings: `composeResources/values/backup_strings.xml`. `App.kt` shows a NavigationRail with Library and Backup on desktop.
 - Emulator testing: `adb reverse tcp:9877 tcp:9877`, then use `127.0.0.1:9877` in the app.
 
 ---
@@ -165,8 +155,8 @@ Gradle project (own wrapper, `gradle/libs.versions.toml`). Build: `cd cmp; ./gra
 
 ## ⚡ Quick Rules & Gotchas for Future Edits
 
-1. **Windows Paths in HTML / JavaScript:**
-   - Always avoid embedding raw Windows paths in inline single-quoted JavaScript attributes (e.g. `onclick="fn('${path}')"`). Instead, store the path in a DOM attribute (e.g. `data-path="${escAttr(path)}"`) and read it via `this.getAttribute('data-path')`.
+1. **Windows Paths over the API:**
+   - Send paths as JSON strings (Kotlin `BackupApi` does); never build them into URLs by hand. In Git Bash, run `MSYS_NO_PATHCONV=1 adb shell ...` or `/sdcard` turns into a Windows path.
 2. **Zero Window Flashing on Windows:**
    - Never use raw `exec.Command("adb", ...)` directly. Always invoke `getADBCommand(...)` in `adb.go` to ensure `CREATE_NO_WINDOW` is applied.
 3. **Status File Synchronization:**

@@ -13,13 +13,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** A phone asking to pair, as the server's dashboard API lists it. */
+/** A phone asking to pair, as the server's backup API lists it. */
 @Serializable
 data class PairRequest(val id: String, val name: String = "", val code: String = "", val ip: String = "")
 
 /**
- * Phones waiting for "Allow this phone?", read from the local server's dashboard API (which only
- * answers this PC). Polls every 2 s, so the app can ask even when the web dashboard isn't open.
+ * Phones waiting for "Allow this phone?", read from the local server's backup API (which only
+ * answers this PC). Polls every 2 s, so the app can ask even while the window is hidden.
  */
 class PairingRequests(private val scope: CoroutineScope) {
   private val _pending = MutableStateFlow<List<PairRequest>>(emptyList())

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,8 +21,8 @@ type WSHub struct {
 	mu      sync.Mutex
 }
 
-// The default origin check only accepts the dashboard's own page, so other
-// websites open in the browser can't read transfer progress.
+// The default origin check refuses pages from other websites (the PC app sends no Origin),
+// so a site open in the browser can't read transfer progress.
 var upgrader = websocket.Upgrader{}
 
 func NewWSHub() *WSHub {
@@ -114,8 +113,8 @@ func BroadcastTransferUpdate(status *BackupStatus) {
 	})
 }
 
-// SetupHTTPServer sets up the routing for the Go Web Dashboard.
-func SetupHTTPServer(publicDir string) http.Handler {
+// SetupHTTPServer sets up the API routes the PC app calls.
+func SetupHTTPServer() http.Handler {
 	mux := http.NewServeMux()
 
 	// ── WebSocket ────────────────────────────────────────────────────────────
@@ -175,7 +174,6 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		_ = json.NewEncoder(w).Encode(map[string]string{"message": out})
 	}
 	mux.HandleFunc("/api/devices/connect", connectHandler)
-	mux.HandleFunc("/api/device/connect-wifi", connectHandler)
 
 	disconnectHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -205,7 +203,6 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		_ = json.NewEncoder(w).Encode(map[string]string{"message": out})
 	}
 	mux.HandleFunc("/api/devices/disconnect", disconnectHandler)
-	mux.HandleFunc("/api/device/disconnect-wifi", disconnectHandler)
 
 	// ── API Routes: Device Browse ────────────────────────────────────────────
 	browseHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -227,63 +224,6 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		_ = json.NewEncoder(w).Encode(entries)
 	}
 	mux.HandleFunc("/api/browse", browseHandler)
-	mux.HandleFunc("/api/device/browse", browseHandler)
-
-	// ── API Routes: Local Browse ─────────────────────────────────────────────
-	mux.HandleFunc("/api/local/browse", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		dirPath := r.URL.Query().Get("path")
-
-		if dirPath == "" {
-			// List drive letters on Windows
-			var roots []map[string]interface{}
-			for r := 'A'; r <= 'Z'; r++ {
-				drive := fmt.Sprintf("%c:\\", r)
-				if _, err := os.Stat(drive); err == nil {
-					roots = append(roots, map[string]interface{}{
-						"name":  drive,
-						"path":  drive,
-						"isDir": true,
-						"size":  0,
-					})
-				}
-			}
-			_ = json.NewEncoder(w).Encode(roots)
-			return
-		}
-
-		entries, err := os.ReadDir(dirPath)
-		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), 500)
-			return
-		}
-
-		var result []map[string]interface{}
-		for _, e := range entries {
-			info, _ := e.Info()
-			sz := int64(0)
-			if info != nil {
-				sz = info.Size()
-			}
-			result = append(result, map[string]interface{}{
-				"name":  e.Name(),
-				"path":  filepath.Join(dirPath, e.Name()),
-				"isDir": e.IsDir(),
-				"size":  sz,
-			})
-		}
-
-		sort.Slice(result, func(i, j int) bool {
-			isDirI := result[i]["isDir"].(bool)
-			isDirJ := result[j]["isDir"].(bool)
-			if isDirI != isDirJ {
-				return isDirI
-			}
-			return strings.ToLower(result[i]["name"].(string)) < strings.ToLower(result[j]["name"].(string))
-		})
-
-		_ = json.NewEncoder(w).Encode(result)
-	})
 
 	// ── API Routes: Destination Setting ──────────────────────────────────────
 	mux.HandleFunc("/api/local/set-destination", func(w http.ResponseWriter, r *http.Request) {
@@ -822,24 +762,6 @@ func SetupHTTPServer(publicDir string) http.Handler {
 		_ = json.NewEncoder(w).Encode(status)
 	})
 
-	mux.HandleFunc("/api/transfer/log-action", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		var body struct {
-			ID     string `json:"id"`
-			Action string `json:"action"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		if body.ID != "" && body.Action != "" {
-			transfersMu.RLock()
-			st, ok := activeTransfers[body.ID]
-			transfersMu.RUnlock()
-			if ok {
-				st.LogUserAction(body.Action)
-			}
-		}
-		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
-	})
-
 	mux.HandleFunc("/api/transfer/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		subPath := strings.TrimPrefix(r.URL.Path, "/api/transfer/")
@@ -895,23 +817,16 @@ func SetupHTTPServer(publicDir string) http.Handler {
 
 	registerPairDashboard(mux)
 
-	// ── Static Files (public/) ───────────────────────────────────────────────
-	fileServer := http.FileServer(http.Dir(publicDir))
+	// No web page: the PhoneBackup PC app is the only UI for this API.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		p := filepath.Join(publicDir, filepath.Clean(r.URL.Path))
-		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-		// Fallback to index.html for SPA
-		http.ServeFile(w, r, filepath.Join(publicDir, "index.html"))
+		http.Error(w, "PhoneBackup engine. Use the PhoneBackup PC app.", http.StatusNotFound)
 	})
 
 	return mux
 }
 
-// dashboardAddr is where the dashboard listens: this PC only, unless lan is set.
-// The dashboard has no login and can browse local drives, so the LAN is opt-in.
+// dashboardAddr is where the backup API listens: this PC only, unless lan is set.
+// The API has no login and can browse local drives, so the LAN is opt-in.
 func dashboardAddr(port int, lan bool) string {
 	if lan {
 		return fmt.Sprintf(":%d", port)
@@ -919,13 +834,13 @@ func dashboardAddr(port int, lan bool) string {
 	return fmt.Sprintf("127.0.0.1:%d", port)
 }
 
-// StartWebServer starts the Go HTTP & WebSocket dashboard server.
-func StartWebServer(port int, lan bool, publicDir string, initialStatus *BackupStatus) {
+// StartWebServer starts the HTTP & WebSocket backup API the PC app uses.
+func StartWebServer(port int, lan bool, initialStatus *BackupStatus) {
 	if initialStatus != nil {
 		RegisterTransfer(initialStatus)
 	}
 
-	handler := SetupHTTPServer(publicDir)
+	handler := SetupHTTPServer()
 	addr := dashboardAddr(port, lan)
 
 	server := &http.Server{
@@ -935,14 +850,14 @@ func StartWebServer(port int, lan bool, publicDir string, initialStatus *BackupS
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Web Dashboard failed on %s: %v\n", addr, err)
+			fmt.Printf("Backup API failed on %s: %v\n", addr, err)
 		}
 	}()
 
 	fmt.Println("╔════════════════════════════════════════════════════════════╗")
-	fmt.Println("║       🌐 PhoneBackup Go Dashboard Online                  ║")
+	fmt.Println("║       PhoneBackup engine online                            ║")
 	fmt.Println("╠════════════════════════════════════════════════════════════╣")
-	fmt.Printf("║ Web Dashboard:  http://localhost:%-25d║\n", port)
+	fmt.Printf("║ Backup API:     http://localhost:%-25d║\n", port)
 	if lan {
 		fmt.Printf("║ %-59s║\n", "Also open to your local network (-lan). It has no login.")
 	} else {

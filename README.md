@@ -4,7 +4,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/OWNER/PhoneBackup)](https://goreportcard.com/report/github.com/OWNER/PhoneBackup)
 
-A robust, cross-platform Android backup tool and web dashboard powered by ADB. Features zero-flash background execution on Windows, real-time speed charts, resume capabilities, file integrity verification, and failed file tracking with one-click retry.
+A robust, cross-platform Android backup tool powered by ADB, with a Windows PC app as its interface. Features zero-flash background execution on Windows, real-time speed charts, resume capabilities, file integrity verification, and failed file tracking with one-click retry.
 
 Supports **Windows**, **macOS**, and **Linux**.
 
@@ -12,8 +12,8 @@ Supports **Windows**, **macOS**, and **Linux**.
 
 Get the archive for your system from the [latest release](https://github.com/raghavsatyadev/PhoneBackup/releases/latest)
 (`windows-amd64.zip`, `linux-amd64` / `linux-arm64`, `darwin-arm64` for Apple silicon Macs,
-`darwin-amd64` for Intel Macs), unpack it and run `phonebackup` from that folder. Keep the `public`
-folder next to the program. You still need ADB (see below). On macOS, if Gatekeeper blocks it, run
+`darwin-amd64` for Intel Macs), unpack it and run `phonebackup` from that folder. The PC app (`cmp/desktopApp`) is
+the interface; the program alone runs the CLI and the API the app uses. You still need ADB (see below). On macOS, if Gatekeeper blocks it, run
 `xattr -d com.apple.quarantine phonebackup` once.
 
 ---
@@ -34,7 +34,7 @@ folder next to the program. You still need ADB (see below). On macOS, if Gatekee
 
 ## 🚀 Quick Start
 
-The repository has two parts: `server/` (the Go backup tool, web dashboard and upload API) and `cmp/` (the Compose Multiplatform phone app).
+The repository has two parts: `server/` (the Go backup engine, its API for the PC app, and the upload API) and `cmp/` (the Compose Multiplatform phone and PC apps).
 
 ### 1. Build Binary
 ```bash
@@ -47,17 +47,14 @@ go build -o phonebackup .
 go build -o phonebackup.exe .
 ```
 
-### 2. Start Web Dashboard
+### 2. Back Up with the PC App
 ```bash
-# Linux / macOS:
-./phonebackup server
-
-# Windows:
-.\phonebackup.exe server
+cd cmp
+./gradlew :desktopApp:run          # or :desktopApp:packageMsi for an installer
 ```
-Then open `http://localhost:9876` in your browser.
+The PC app starts the bundled `phonebackup.exe server` in the background (build it first, step 1) and stays in the tray. Its **Backup** tab picks the phone (USB or Wi-Fi), the phone folders and the PC folder, then starts, pauses, resumes or cancels backups with live progress, lists failed files with **Retry failed**, and **Open status file** carries on from a saved `phonebackup_status.json`.
 
-The dashboard only answers on this PC. To open it from another device on your network, start it with `-lan` (it has no login, so only do this on a network you trust). The photo upload API for the Android app is separate and always on your network (port 9877, token protected).
+The engine's API only answers on this PC. `phonebackup server -lan` opens it to your network (it has no login, so only do this on a network you trust). The photo upload API for the Android app is separate and always on your network (port 9877, token protected).
 
 ### 3. CLI Backup & Resume
 ```bash
@@ -72,9 +69,9 @@ The dashboard only answers on this PC. To open it from another device on your ne
 ### 4. Share Photos from Your Phone (Android app)
 The `cmp/` folder holds the **PhoneBackup** app, an Android app that sends photos to your PC over Wi-Fi.
 
-1. Start the server (`phonebackup server`) and open the dashboard. Allow it through the firewall on first run.
+1. Start the PC app (it runs the server). Allow it through the firewall on first run.
 2. Build and install the app: `cd cmp && ./gradlew :androidApp:installDebug`.
-3. Open the app and allow it to find devices on your network. Your PC shows up under **On this Wi-Fi**; tap **Pair**. The phone and the dashboard show the same 6-digit code: click **Allow** on the PC. If the PC isn't found, use **Add by address** (e.g. `192.168.1.20:9877`).
+3. Open the app and allow it to find devices on your network. Your PC shows up under **On this Wi-Fi**; tap **Pair**. The phone and the PC app show the same 6-digit code: click **Allow** on the PC. If the PC isn't found, use **Add by address** (e.g. `192.168.1.20:9877`).
 4. You can pair several PCs; the selected one gets the photos. Switch it from **Send to** on the share screen.
 5. Share photos to **PhoneBackup** (Send to PC) from any app (or pick them in the app). Set an album name and tags, check or edit the dates, and tap **Upload to PC**.
 
@@ -116,11 +113,11 @@ Use `-vision-url` if Ollama runs somewhere other than `http://127.0.0.1:11434`.
 
 ## ✨ Features
 
-- **Real-Time Web Dashboard**: Monitor active transfers, view live throughput speed charts (MB/s), and inspect streaming file activity logs.
+- **PC App Backup Tab**: Monitor active transfers, view live throughput speed charts (MB/s), and inspect file activity logs.
 - **Resumable & Incremental**: Safely skips already transferred files and resumes interrupted backups via `phonebackup_status.json`.
 - **Failed Files Box & Retry**: Failed files are highlighted in their own section, preserved in the status JSON, and can be retried with one click.
 - **Silent Windows Execution**: Native process flags (`CREATE_NO_WINDOW`) prevent console window flashing during ADB file pulls.
-- **WiFi ADB Support**: Pair and connect wirelessly over your local WiFi network directly from the dashboard.
+- **WiFi ADB Support**: Connect wirelessly over your local WiFi network from the PC app.
 - **Android Share App**: Share photos from any app to your PC over Wi-Fi, grouped into an album with tags and editable dates (read from photo data). The upload API listens on your LAN (port 9877) and needs a token.
 
 ---
@@ -134,7 +131,7 @@ Your privacy and code security are verified through automated audits and transpa
 - **Zero Supply-Chain Risk (Standard Library First)**:
   Unlike projects with hundreds of nested dependencies, PhoneBackup uses standard Go libraries and exactly **one** audited dependency (`gorilla/websocket`). There are no obfuscated scripts, no minified mystery bundles, and no telemetry SDKs.
 - **100% Offline & Local**:
-  Zero tracking, zero analytics, and zero outbound network calls. The web dashboard listens on `127.0.0.1` only (`http://localhost:9876`) unless you add `-lan`.
+  Zero tracking, zero analytics, and zero outbound network calls. The backup API listens on `127.0.0.1:9876` only unless you add `-lan`.
 - **Direct P2P Transfer**:
   All file transfers occur directly between your device and your PC over your private USB cable or local WiFi network via Google's official Android Debug Bridge (`adb`).
 - **Transparent & Auditable**:

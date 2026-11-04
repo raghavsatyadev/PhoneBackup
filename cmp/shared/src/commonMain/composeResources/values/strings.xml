@@ -113,9 +113,9 @@
   <!-- Pairing -->
   <string name="pair_title">Pair with %1$s</string>
   <string name="pair_asking">Asking the PC…</string>
-  <string name="pair_check_code">On the PC, check that the PhoneBackup dashboard shows this code, then click Allow.</string>
+  <string name="pair_check_code">On the PC, check that the PhoneBackup app shows this code, then click Allow.</string>
   <string name="pair_waiting">Waiting for the PC to allow this phone…</string>
-  <string name="pair_dashboard_hint">The dashboard is at http://localhost:9876 on the PC.</string>
+  <string name="pair_dashboard_hint">The PhoneBackup app must be running on the PC (it waits in the tray).</string>
   <string name="pair_allowed">Paired with %1$s. Photos will go there.</string>
   <string name="pair_denied">The PC said no.</string>
   <string name="pair_expired">The request ran out of time.</string>

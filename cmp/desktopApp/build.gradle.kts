@@ -19,13 +19,13 @@ dependencies {
   implementation(libs.jna.platform)
 }
 
-// The Go server and its web dashboard ride along in the app's resources (server/), so the app can
+// The Go server (the backup engine) rides along in the app's resources (server/), so the app can
 // start it. Build it first with `go build -o phonebackup.exe .` in ../server.
 val serverResources = layout.buildDirectory.dir("appResources")
 val copyServer by
   tasks.registering(Sync::class) {
     from(rootDir.resolve("../server")) {
-      include("phonebackup.exe", "public/**")
+      include("phonebackup.exe")
       into("windows/server")
     }
     into(serverResources)

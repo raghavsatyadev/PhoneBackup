@@ -401,12 +401,20 @@ func LoadStatusFile(target string) (*BackupStatus, error) {
 	return &status, nil
 }
 
-// AddDeviceSerial registers a new serial connection (e.g. WiFi IP or USB hardware serial) for this device.
+// AddDeviceSerial makes newSerial (an adb serial: USB or ip:port) the active connection and remembers it.
 func (s *BackupStatus) AddDeviceSerial(newSerial string) {
+	s.mu.Lock()
+	s.ActiveSerial = newSerial
+	s.mu.Unlock()
+	s.AddKnownSerial(newSerial)
+}
+
+// AddKnownSerial remembers another ID for this device, such as its hardware serial (ro.serialno),
+// without making it active: adb only takes the serial it lists, which differs on Wi-Fi and emulators.
+func (s *BackupStatus) AddKnownSerial(newSerial string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.ActiveSerial = newSerial
 	has := false
 	for _, x := range s.DeviceSerials {
 		if x == newSerial {
@@ -628,7 +636,7 @@ func RunTransferEngine(ctx context.Context, status *BackupStatus, onProgress fun
 					status.ActiveSerial = d.Serial
 					status.AddDeviceSerial(d.Serial)
 					if hw != "" {
-						status.AddDeviceSerial(hw)
+						status.AddKnownSerial(hw)
 					}
 					if d.Model != "" {
 						status.DeviceModel = d.Model
@@ -655,7 +663,7 @@ func RunTransferEngine(ctx context.Context, status *BackupStatus, onProgress fun
 	// Discover hardware serial (ro.serialno) & product model to uniquely identify device across USB and WiFi
 	if status.ActiveSerial != "" {
 		if hw := GetDeviceHardwareSerial(status.ActiveSerial); hw != "" {
-			status.AddDeviceSerial(hw)
+			status.AddKnownSerial(hw)
 		}
 		if status.DeviceModel == "" {
 			status.DeviceModel = GetDeviceModel(status.ActiveSerial)

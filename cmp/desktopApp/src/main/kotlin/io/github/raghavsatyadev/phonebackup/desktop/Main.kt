@@ -22,13 +22,13 @@ import io.github.raghavsatyadev.phonebackup.desktop.system.TrayIcon
 import io.github.raghavsatyadev.phonebackup.desktop.system.TrayMenuItem
 import io.github.raghavsatyadev.phonebackup.shared.ViewerApp
 import io.github.raghavsatyadev.phonebackup.shared.appModule
+import io.github.raghavsatyadev.phonebackup.shared.backup.backupModule
 import io.github.raghavsatyadev.phonebackup.shared.data.DesktopKeyValueStore
 import io.github.raghavsatyadev.phonebackup.shared.data.SettingsStore
 import io.github.raghavsatyadev.phonebackup.shared.ui.theme.AppTheme
-import java.awt.Desktop
 import java.io.File
-import java.net.URI
 import javax.swing.JFileChooser
+import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.system.exitProcess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +56,12 @@ fun main(args: Array<String>) {
   val host = runCatching { java.net.InetAddress.getLocalHost().hostName }.getOrNull() ?: System.getProperty("user.name").orEmpty()
   val settings = SettingsStore(DesktopKeyValueStore())
   addThisPc(settings) // after the server is up: it writes the token on first start
-  startKoin { modules(appModule(settings, deviceName = host, pickFolder = ::chooseFolder)) }
+  startKoin {
+    modules(
+      appModule(settings, deviceName = host, pickFolder = { chooseFolder(it, "Folder for photos from phones") }),
+      backupModule(pickFolder = { chooseFolder(it, "Folder to back the phone up into") }, pickStatusFile = ::chooseStatusFile),
+    )
+  }
 
   val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
   val pairing = PairingRequests(scope).also { it.start() }
@@ -66,7 +71,6 @@ fun main(args: Array<String>) {
       "PhoneBackup",
       listOf(
         TrayMenuItem("Open PhoneBackup") { visible.value = true },
-        TrayMenuItem("Open web dashboard") { openDashboard() },
         TrayMenuItem("Quit") { quits.tryEmit(Unit) },
       ),
     ) {
@@ -121,20 +125,27 @@ fun main(args: Array<String>) {
   exitProcess(0)
 }
 
-private fun openDashboard() {
-  runCatching { Desktop.getDesktop().browse(URI("http://localhost:9876")) }
-}
-
 private fun appIcon(): Painter? =
   Thread.currentThread().contextClassLoader.getResourceAsStream("icon.svg")?.use { loadSvgPainter(it, Density(1f)) }
 
 /** The system folder chooser, starting at [start]; null when cancelled. */
-private suspend fun chooseFolder(start: String): String? =
+private suspend fun chooseFolder(start: String, title: String): String? =
   withContext(Dispatchers.Swing) {
     val chooser =
       JFileChooser(File(start).takeIf { it.isDirectory } ?: File(start).parentFile).apply {
         fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-        dialogTitle = "Folder for photos from phones"
+        dialogTitle = title
+      }
+    if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile.absolutePath else null
+  }
+
+/** The system file chooser for a saved `phonebackup_status.json`; null when cancelled. */
+private suspend fun chooseStatusFile(): String? =
+  withContext(Dispatchers.Swing) {
+    val chooser =
+      JFileChooser().apply {
+        dialogTitle = "Open a backup status file"
+        fileFilter = FileNameExtensionFilter("Backup status (*.json)", "json")
       }
     if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile.absolutePath else null
   }
