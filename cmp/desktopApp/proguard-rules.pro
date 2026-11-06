@@ -21,6 +21,8 @@
 -keep class kotlinx.io.** { *; }
 -keep class org.slf4j.** { *; }
 -keep class org.koin.** { *; }
+# Coil finds fetchers and decoders through ServiceLoader and its own registry; shrunk, images stay blank.
+-keep class coil3.** { *; }
 
 # --- kotlinx.serialization: serializers are found through the companion's serializer(). ---
 -keepattributes *Annotation*, InnerClasses, Signature, EnclosingMethod, RuntimeVisibleAnnotations
