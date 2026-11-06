@@ -42,7 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -220,9 +220,10 @@ private fun ViewTabs(selected: LibraryView, onSelect: (LibraryView) -> Unit) {
       LibraryView.Categories to Res.string.view_categories,
       LibraryView.Events to Res.string.view_events,
     )
-  PrimaryTabRow(selectedTabIndex = selected.ordinal) {
+  // Scrollable so a long label such as "Categories" stays on one line on narrow phones.
+  PrimaryScrollableTabRow(selectedTabIndex = selected.ordinal, edgePadding = 0.dp) {
     LibraryView.entries.forEach { v ->
-      Tab(selected = v == selected, onClick = { onSelect(v) }, text = { Text(stringResource(labels.getValue(v))) })
+      Tab(selected = v == selected, onClick = { onSelect(v) }, text = { Text(stringResource(labels.getValue(v)), maxLines = 1, softWrap = false) })
     }
   }
 }
