@@ -13,8 +13,8 @@ versionCode = "1"
 versionName = "0.1.0"
 
 # Plugins (same as SCUS, already cached on this machine)
-agp = "9.6.0-alpha02"
-kotlin = "2.5.0-Beta2"
+agp = "9.6.0-alpha03"
+kotlin = "2.5.0-RC"
 
 # Libraries
 activity = "1.14.0-alpha03"
@@ -22,8 +22,8 @@ androidx-core = "1.19.1"
 coil = "3.6.3"
 collections-immutable = "0.5.2"
 compose-material3-mp = "1.13.0-beta01"
-compose-multiplatform = "1.13.0-beta01"
-compose-ui = "1.13.0-beta02"
+compose-multiplatform = "1.13.0-beta02"
+compose-ui = "1.13.0-rc01"
 coroutines = "1.11.0"
 exifinterface = "1.4.2"
 kotlinx-datetime = "0.8.0"
