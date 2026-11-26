@@ -13,7 +13,7 @@ versionCode = "1"
 versionName = "0.1.0"
 
 # Plugins (same as SCUS, already cached on this machine)
-agp = "9.6.0-alpha03"
+agp = "9.6.0-alpha05"
 kotlin = "2.5.0-RC"
 
 # Libraries
