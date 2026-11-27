@@ -150,10 +150,15 @@ This project draws inspiration from and acknowledges the following open-source p
 
 ## Support
 
-Free to use. If it helps you, [pay by UPI (India)](https://raghavsatyadev.github.io/donate/) or scan:
-<!-- Add when the profile is live: [GitHub Sponsors](https://github.com/sponsors/raghavsatyadev) -->
+<a href="https://raghavsatyadev.github.io/donate/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raghavsatyadev.github.io/donate/card-dark.png">
+    <img src="https://raghavsatyadev.github.io/donate/card-light.png" width="720" alt="Support my work: pay with UPI to satyadev@goaxb">
+  </picture>
+</a>
 
-<img src="https://raghavsatyadev.github.io/donate/upi-qr.png" width="180" alt="UPI QR code for satyadev@goaxb">
+Click the card to pay, or copy the UPI ID: `satyadev@goaxb`
+<!-- Add when the profile is live: [GitHub Sponsors](https://github.com/sponsors/raghavsatyadev) -->
 
 ## 📄 License
 
