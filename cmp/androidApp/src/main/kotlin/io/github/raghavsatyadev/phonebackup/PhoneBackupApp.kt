@@ -10,6 +10,8 @@ import android.os.Bundle
 import io.github.raghavsatyadev.phonebackup.discovery.LocalNetworkAccess
 import io.github.raghavsatyadev.phonebackup.discovery.NsdDiscovery
 import io.github.raghavsatyadev.phonebackup.shared.appModule
+import io.github.raghavsatyadev.phonebackup.shared.sample.sampleAppModule
+import org.koin.core.module.Module
 import io.github.raghavsatyadev.phonebackup.shared.data.ShareQueue
 import kotlinx.coroutines.CoroutineScope
 import org.koin.core.component.KoinComponent
@@ -37,16 +39,9 @@ class PhoneBackupApp : Application(), KoinComponent {
   override fun onCreate() {
     super.onCreate()
     localNetwork = LocalNetworkAccess(this)
-    startKoin {
-      modules(
-        appModule(
-          settings = SettingsStore(AndroidKeyValueStore(this@PhoneBackupApp)),
-          discovery = NsdDiscovery(getSystemService(NsdManager::class.java), localNetwork),
-          deviceName = deviceName(),
-        )
-      )
-    }
-    importer = AndroidPhotoImporter(this)
+    val sample = AndroidSampleMode(this)
+    startKoin { modules(if (sample.active) sampleModule(sample) else realModule(sample)) }
+    importer = AndroidPhotoImporter(this, if (sample.active) AndroidSampleMode.INCOMING_FOLDER else "incoming")
     TransferNotifications.createChannels(this)
     registerActivityLifecycleCallbacks(VisibilityTracker())
     // Restoring isn't a transfer: no progress, so no service.
@@ -63,6 +58,17 @@ class PhoneBackupApp : Application(), KoinComponent {
       queue.summaries.collect { if (startedActivities == 0) TransferNotifications.postSummary(this@PhoneBackupApp, it) }
     }
   }
+
+  private fun realModule(sample: AndroidSampleMode) =
+    appModule(
+      settings = SettingsStore(AndroidKeyValueStore(this)),
+      discovery = NsdDiscovery(getSystemService(NsdManager::class.java), localNetwork),
+      deviceName = deviceName(),
+      sample = sample,
+    )
+
+  /** The made-up PC: no network at all (see SampleServer). */
+  private fun sampleModule(sample: AndroidSampleMode): Module = sampleAppModule(sample, deviceName())
 
   /** The name the user gave the phone (shown on the PC when pairing), else the model. */
   private fun deviceName(): String =

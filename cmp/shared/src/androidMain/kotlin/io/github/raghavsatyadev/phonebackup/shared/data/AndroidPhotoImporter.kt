@@ -29,9 +29,9 @@ import kotlinx.datetime.toLocalDateTime
  * small ".meta" file so a restart can restore the queue with the same dates.
  */
 @OptIn(ExperimentalTime::class)
-class AndroidPhotoImporter(context: Context) {
+class AndroidPhotoImporter(context: Context, folder: String = "incoming") {
   private val resolver: ContentResolver = context.contentResolver
-  private val root = File(context.filesDir, "incoming")
+  private val root = File(context.filesDir, folder)
   private val mutex = Mutex()
   private val known = HashSet<String>()
 

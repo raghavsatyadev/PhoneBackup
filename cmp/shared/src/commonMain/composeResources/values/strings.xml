@@ -130,4 +130,12 @@
   <string name="folder_changed">New photos will be saved in %1$s</string>
   <string name="folder_remote">This PC saves photos in %1$s. It can only be changed in the PhoneBackup app on that PC.</string>
   <string name="folder_failed">Could not change the folder: %1$s</string>
+  <string name="sample_entry_title">No PC yet?</string>
+  <string name="sample_entry_text">Try the app with a made-up PC and sample photos. Nothing leaves this phone, and your real PCs stay as they are.</string>
+  <string name="sample_entry_button">Try with sample data</string>
+  <string name="sample_banner_title">Sample mode: a made-up PC with sample photos</string>
+  <string name="sample_banner_exit">Exit</string>
+  <string name="about_title">About</string>
+  <string name="privacy_policy">Privacy policy</string>
+  <string name="privacy_policy_hint">Photos go only to the PCs you pair. No accounts, ads or analytics.</string>
 </resources>

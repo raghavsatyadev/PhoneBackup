@@ -12,6 +12,9 @@ import io.github.raghavsatyadev.phonebackup.shared.data.ShareQueue
 import io.github.raghavsatyadev.phonebackup.shared.data.UploadClient
 import io.github.raghavsatyadev.phonebackup.shared.data.authedImageClient
 import io.github.raghavsatyadev.phonebackup.shared.data.createHttpClient
+import io.github.raghavsatyadev.phonebackup.shared.sample.NoSampleMode
+import io.github.raghavsatyadev.phonebackup.shared.sample.SampleMode
+import io.ktor.client.HttpClient
 import io.github.raghavsatyadev.phonebackup.shared.ui.library.LibraryViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.servers.PairViewModel
 import io.github.raghavsatyadev.phonebackup.shared.ui.servers.ServersViewModel
@@ -35,19 +38,25 @@ class DeviceInfo(val name: String, val canSearch: Boolean, val pickFolder: (susp
 /** The HTTP client the image loader uses for gallery thumbnails; it sends the token in a header. */
 val ImageHttp = named("imageHttp")
 
-/** App dependencies, started once by the platform app. Singles are created on first use. */
+/**
+ * App dependencies, started once by the platform app. Singles are created on first use. In sample
+ * mode [httpClient] builds the in-memory sample PC's client instead of a real one.
+ */
 fun appModule(
   settings: SettingsStore,
   discovery: ServerDiscovery = NoDiscovery,
   deviceName: String = "",
   pickFolder: (suspend (String) -> String?)? = null,
+  sample: SampleMode = NoSampleMode,
+  httpClient: () -> HttpClient = ::createHttpClient,
 ) =
   module {
     includes(navigationModule)
     single { settings }
+    single { sample }
     single { DeviceInfo(deviceName, canSearch = discovery !== NoDiscovery, pickFolder) }
-    single { createHttpClient() }
-    single(ImageHttp) { authedImageClient(get()) }
+    single { httpClient() }
+    single(ImageHttp) { authedImageClient(get(), httpClient()) }
     // App-wide scope: work here outlives any screen.
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { UploadClient(get()) }

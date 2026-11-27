@@ -1,6 +1,11 @@
 package io.github.raghavsatyadev.phonebackup.shared
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import io.github.raghavsatyadev.phonebackup.shared.sample.SampleMode
+import io.github.raghavsatyadev.phonebackup.shared.sample.SampleModeBanner
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -82,6 +87,7 @@ fun App(onPickPhotos: () -> Unit) {
     // Only the bottom bar scrolls away; the rail stays while a tab is open.
     val showSuite = onTab && (bars.visible || !isBar)
     LaunchedEffect(showSuite) { if (showSuite) suite.show() else suite.hide() }
+    SampleBannerOver {
     NavigationSuiteScaffold(
       navigationItems = {
         Tab(backStack, ShareKey, Res.drawable.ic_cloud_upload, Res.string.tab_share)
@@ -96,6 +102,21 @@ fun App(onPickPhotos: () -> Unit) {
         }
       }
     }
+    }
+  }
+}
+
+/** In sample mode, the banner above [content]; the screens below no longer pad for the status bar. */
+@Composable
+private fun SampleBannerOver(content: @Composable () -> Unit) {
+  val sample = koinInject<SampleMode>()
+  if (!sample.active) {
+    content()
+    return
+  }
+  Column(Modifier.fillMaxSize()) {
+    SampleModeBanner(sample)
+    Box(Modifier.weight(1f).consumeWindowInsets(WindowInsets.statusBars)) { content() }
   }
 }
 

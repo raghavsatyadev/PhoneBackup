@@ -61,8 +61,8 @@ class GalleryClient(private val http: HttpClient) {
  * An HTTP client for image loading that adds the current token to every request, read
  * at request time so a new token in Settings works without restarting.
  */
-fun authedImageClient(settings: SettingsStore): HttpClient =
-  createHttpClient().config {
+fun authedImageClient(settings: SettingsStore, base: HttpClient = createHttpClient()): HttpClient =
+  base.config {
     install(
       createClientPlugin("PhoneBackupAuth") {
         onRequest { request, _ ->

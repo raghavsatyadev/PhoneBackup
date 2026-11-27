@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The PhoneBackup PC server runs on the local network over plain HTTP (any LAN IP). -->
+<!-- HTTPS everywhere, except plain HTTP to PhoneBackup PCs on the local network. The config can't
+     match IP ranges and a PC's address changes, so the app sends LAN requests to an alias:
+     http://192.168.1.5 becomes http://192-168-1-5.pc.phonebackup.lan, which the app's own DNS
+     resolves back only for private, link-local and loopback IPv4 (shared/.../data/LanHost.kt). -->
 <network-security-config>
-  <base-config cleartextTrafficPermitted="true" />
+  <base-config cleartextTrafficPermitted="false" />
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">pc.phonebackup.lan</domain>
+  </domain-config>
 </network-security-config>

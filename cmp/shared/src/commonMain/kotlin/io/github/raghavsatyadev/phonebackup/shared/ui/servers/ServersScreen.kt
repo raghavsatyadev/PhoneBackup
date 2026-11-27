@@ -55,7 +55,10 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.servers_paired
 import io.github.raghavsatyadev.phonebackup.shared.resources.servers_saved
 import io.github.raghavsatyadev.phonebackup.shared.resources.servers_searching
 import io.github.raghavsatyadev.phonebackup.shared.resources.servers_title
+import io.github.raghavsatyadev.phonebackup.shared.sample.SampleMode
+import io.github.raghavsatyadev.phonebackup.shared.sample.SampleModeEntry
 import io.github.raghavsatyadev.phonebackup.shared.ui.theme.DelayedLoadingIndicator
+import org.koin.compose.koinInject
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -68,7 +71,8 @@ fun ServersRoute(
   onPair: (address: String, name: String) -> Unit,
 ) {
   val state by viewModel.state.collectAsStateWithLifecycle()
-  ServersScreen(state, viewModel::onEvent, onBack, onAdd, onEdit, onPair)
+  val sample = koinInject<SampleMode>()
+  ServersScreen(state, viewModel::onEvent, onBack, onAdd, onEdit, onPair, sample.takeIf { it.available && !it.active })
 }
 
 @Composable
@@ -79,6 +83,8 @@ fun ServersScreen(
   onAdd: () -> Unit,
   onEdit: (localId: String) -> Unit,
   onPair: (address: String, name: String) -> Unit,
+  /** Offers sample mode at the bottom when set (Android, while not in sample mode). */
+  sample: SampleMode? = null,
 ) {
   Scaffold(
     topBar = {
@@ -124,6 +130,8 @@ fun ServersScreen(
           onPair = { onPair(row.address, row.label) },
         )
       }
+      if (sample != null) item { SampleModeEntry(sample) }
+      item { AboutSection() }
     }
   }
 }

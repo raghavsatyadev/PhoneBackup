@@ -38,12 +38,23 @@ class TransferService : Service() {
     if (intent?.action == ACTION_CANCEL) queue.cancel()
     // Must go foreground on every start, even one that only cancels.
     val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
-    ServiceCompat.startForeground(
-      this,
-      TransferNotifications.PROGRESS_ID,
-      TransferNotifications.progress(this, queue.progress.value),
-      type,
-    )
+    try {
+      ServiceCompat.startForeground(
+        this,
+        TransferNotifications.PROGRESS_ID,
+        TransferNotifications.progress(this, queue.progress.value),
+        type,
+      )
+    } catch (e: RuntimeException) {
+      // Android 15+ refuses once today's 6-hour dataSync budget is used up (and 12+ from the
+      // background). The work still runs while the app is open; there is just no notification.
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && e is ForegroundServiceStartNotAllowedException) {
+        Log.w(TAG, "Not allowed to run in the foreground", e)
+        stopSelf()
+        return START_NOT_STICKY
+      }
+      throw e
+    }
     if (watcher == null) watcher = scope.launch { watch() }
     return START_NOT_STICKY
   }
@@ -73,7 +84,11 @@ class TransferService : Service() {
     stopSelf()
   }
 
-  /** Android 15+ limits dataSync services to 6 hours a day; stop cleanly when told to. */
+  /**
+   * Android 15+ limits dataSync services to 6 hours in 24; when the time is up the system calls
+   * this and the service must stop within seconds. Uploads are cancelled (photos that weren't sent
+   * stay in the list to retry later) and the service stops, so the app is never killed for it.
+   */
   override fun onTimeout(startId: Int, fgsType: Int) {
     queue.cancel()
     stop()

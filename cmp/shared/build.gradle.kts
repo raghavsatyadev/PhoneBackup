@@ -32,6 +32,8 @@ kotlin {
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.ktor.client.core)
+      // Sample mode: an in-memory fake PC behind the same HTTP client (no network).
+      implementation(libs.ktor.client.mock)
       api(libs.koin.core)
       implementation(libs.koin.compose)
       implementation(libs.koin.compose.viewmodel)
