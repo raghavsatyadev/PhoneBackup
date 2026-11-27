@@ -67,6 +67,8 @@ Cleartext HTTP is off for the whole app except the alias domain `pc.phonebackup.
 
 ## Store screenshots
 
-Take them in sample mode on a real phone, so no real photos show. Play allows an aspect ratio of up
-to 2:1, so crop the top or bottom of a tall phone's screenshot (for example 1440 × 3120 to
-1440 × 2880). Keep the sample banner in the shot.
+Take them in sample mode on a headless emulator (`emulator -avd <name> -no-window`), so no real
+photos or personal data show. Play allows an aspect ratio of up to 2:1, so set the screen to exactly
+2:1 first: `adb shell wm size 1080x2160` and `adb shell wm density 420`. Turn on SystemUI demo mode
+for a clean status bar (clock 12:00, full battery and Wi-Fi). Take each shot with
+`adb exec-out screencap -p`. Keep the sample banner in the shot.

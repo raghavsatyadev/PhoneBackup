@@ -7,8 +7,8 @@ Paste each block into the matching Play Console field. Checked 2026-11-27.
 
 - App icon (512 × 512 PNG): `icon-512.png`
 - Feature graphic (1024 × 500): `feature-graphic-1024x500.png`
-- Phone screenshots (2–8, 9:16 to 16:9): `screenshots/`, taken in sample mode on a real phone, so no
-  real photos or personal data show. The sample banner stays in the shots; it is accurate.
+- Phone screenshots (2–8, 9:16 to 16:9): `screenshots/`, 1080 × 2160, taken in sample mode on a headless
+  emulator, so no real photos or personal data show. The sample banner stays in the shots; it is accurate.
 
 ## App name (≤ 30)
 

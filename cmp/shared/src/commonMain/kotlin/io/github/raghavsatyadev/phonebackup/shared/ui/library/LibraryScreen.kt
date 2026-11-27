@@ -89,6 +89,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -254,7 +255,7 @@ private fun BucketGrid(config: ServerConfig, buckets: List<Bucket>, onOpen: (Str
         Column(Modifier.padding(12.dp)) {
           Text(b.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
           Text(
-            stringResource(Res.string.bucket_count, b.count),
+            pluralStringResource(Res.plurals.bucket_count, b.count, b.count),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )

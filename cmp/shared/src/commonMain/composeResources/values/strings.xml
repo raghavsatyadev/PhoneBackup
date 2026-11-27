@@ -11,10 +11,13 @@
   <string name="empty_body">Share photos to PhoneBackup from Gallery, Photos, WhatsApp or any app, or pick them here.</string>
   <string name="action_pick_photos">Pick photos</string>
   <string name="action_add_more">Add more</string>
-  <string name="photo_count">%1$s photos</string>
+  <plurals name="photo_count">
+    <item quantity="one">%1$d photo</item>
+    <item quantity="other">%1$d photos</item>
+  </plurals>
   <string name="album_label">Album / folder name</string>
   <string name="album_placeholder">Unsorted</string>
-  <string name="album_new">New album \"%1$s\" will be created on the PC</string>
+  <string name="album_new">New album “%1$s” will be created on the PC</string>
   <string name="tags_label">Tags</string>
   <string name="tags_placeholder">Type a tag, then comma or Enter</string>
   <string name="action_add_tag">Add</string>
@@ -77,7 +80,10 @@
   <string name="library_empty">No photos on the PC yet. Upload some from the Share tab.</string>
   <string name="library_error">Could not load photos: %1$s</string>
   <string name="action_retry">Retry</string>
-  <string name="bucket_count">%1$s photos</string>
+  <plurals name="bucket_count">
+    <item quantity="one">%1$d photo</item>
+    <item quantity="other">%1$d photos</item>
+  </plurals>
   <string name="no_category">Uncategorized</string>
   <string name="similar_count">%1$s similar</string>
   <string name="similar_shots">Similar shots</string>

@@ -69,6 +69,7 @@ import io.github.raghavsatyadev.phonebackup.shared.resources.tags_placeholder
 import io.github.raghavsatyadev.phonebackup.shared.ui.theme.animationsEnabled
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /** Album, tags and group actions for the photos being shared. */
@@ -121,7 +122,7 @@ fun GroupForm(state: ShareUiState, onEvent: (ShareEvent) -> Unit, onPickPhotos: 
         }
       }
       Text(
-        stringResource(Res.string.photo_count, state.photos.size.toString()),
+        pluralStringResource(Res.plurals.photo_count, state.photos.size, state.photos.size),
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
       )
