@@ -148,6 +148,13 @@ This project draws inspiration from and acknowledges the following open-source p
 
 ---
 
+## Support
+
+Free to use. If it helps you, [pay by UPI (India)](https://raghavsatyadev.github.io/donate/) or scan:
+<!-- Add when the profile is live: [GitHub Sponsors](https://github.com/sponsors/raghavsatyadev) -->
+
+<img src="https://raghavsatyadev.github.io/donate/upi-qr.png" width="180" alt="UPI QR code for satyadev@goaxb">
+
 ## 📄 License
 
 This project is licensed under the [Apache License 2.0](LICENSE).
