@@ -150,15 +150,27 @@ This project draws inspiration from and acknowledges the following open-source p
 
 ## Support
 
-<a href="https://raghavsatyadev.github.io/donate/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raghavsatyadev.github.io/donate/card-dark.png">
-    <img src="https://raghavsatyadev.github.io/donate/card-light.png" width="720" alt="Support my work: pay with UPI to satyadev@goaxb">
-  </picture>
-</a>
+<div align="center">
 
-Click the card to pay, or copy the UPI ID: `satyadev@goaxb`
-<!-- Add when the profile is live: [GitHub Sponsors](https://github.com/sponsors/raghavsatyadev) -->
+My apps and code are free. If one helps you, you can chip in.
+
+<img src="https://raghavsatyadev.github.io/donate/upi-qr.png" width="220" alt="UPI QR code for satyadev@goaxb">
+
+**Scan with any UPI app, or copy the UPI ID below**
+
+</div>
+
+```text
+satyadev@goaxb
+```
+
+<div align="center">
+
+Outside India:
+
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor_on-GitHub-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/raghavsatyadev)
+
+</div>
 
 ## 📄 License
 
