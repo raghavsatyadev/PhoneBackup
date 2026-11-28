@@ -8,6 +8,10 @@ A robust, cross-platform Android backup tool powered by ADB, with a Windows PC a
 
 Supports **Windows**, **macOS**, and **Linux**.
 
+<p align="center">
+  <img src="docs/screenshots/desktop-backup.jpg" width="704" alt="PhoneBackup desktop app copying a phone's Music folder, with speed, files done and time left">
+</p>
+
 ## ⬇️ Download
 
 Get the archive for your system from the [latest release](https://github.com/raghavsatyadev/PhoneBackup/releases/latest)
@@ -68,6 +72,13 @@ The engine's API only answers on this PC. `phonebackup server -lan` opens it to 
 
 ### 4. Share Photos from Your Phone (Android app)
 The `cmp/` folder holds the **PhoneBackup** app, an Android app that sends photos to your PC over Wi-Fi.
+
+<p align="center">
+  <img src="docs/store/play/screenshots/06-share.png" width="24%" alt="Share screen with album name, tags and photos ready to upload to the PC">
+  <img src="docs/store/play/screenshots/01-library.png" width="24%" alt="Library grid of uploaded photos">
+  <img src="docs/store/play/screenshots/02-photo-details.png" width="24%" alt="Photo details with date, your tags and AI tags">
+  <img src="docs/store/play/screenshots/04-pairing.png" width="24%" alt="Pairing screen showing a 6-digit code to confirm on the PC">
+</p>
 
 1. Start the PC app (it runs the server). Allow it through the firewall on first run.
 2. Build and install the app: `cd cmp && ./gradlew :androidApp:installDebug`.
