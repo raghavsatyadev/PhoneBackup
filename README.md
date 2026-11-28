@@ -152,11 +152,12 @@ This project draws inspiration from and acknowledges the following open-source p
 
 <div align="center">
 
-My apps and code are free. If one helps you, you can chip in.
-
-<img src="https://raghavsatyadev.github.io/donate/upi-qr.png" width="220" alt="UPI QR code for satyadev@goaxb">
-
-**Scan with any UPI app, or copy the UPI ID below**
+<a href="https://raghavsatyadev.github.io/donate/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raghavsatyadev.github.io/donate/card-dark.png">
+    <img src="https://raghavsatyadev.github.io/donate/card-light.png" width="720" alt="Support my work: scan the QR or copy the UPI ID satyadev@goaxb">
+  </picture>
+</a>
 
 </div>
 
